@@ -388,3 +388,10 @@ details > summary.btn::-webkit-details-marker{display:none}
 .product-wait{font-size:12.5px;color:var(--brick);font-weight:500}
 .wait-ack{border:1.5px solid var(--brick);background:var(--brick-soft);border-radius:12px;padding:12px 14px;font-size:14.5px}
 .wait-ack input{accent-color:var(--leaf);width:18px;height:18px}
+
+/* handmade shipping: per-parcel ETA, claims, seller ship form */
+.ship-eta{display:flex;gap:8px;align-items:flex-start;color:var(--ink)}
+.ship-eta svg{flex:none;margin-top:2px;color:var(--brick)}
+.claim{border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:10px;padding:10px 12px;display:grid;gap:6px}
+.shipform{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;align-items:end;background:var(--accent-soft);border-radius:10px;padding:12px}
+.shipform .btn{height:40px}

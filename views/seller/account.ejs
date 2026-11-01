@@ -20,6 +20,20 @@
       <div><button class="btn">บันทึกบัญชีรับเงิน</button></div>
     </form>
   </div>
+  <% if (me.handmade_status === 'approved') { %>
+  <form class="panel form" method="post" action="/seller/account/shipping" id="shipping">
+    <h2>ค่าส่งและที่อยู่ผู้ส่ง (งาน handmade)</h2>
+    <p class="hint">คิดค่าส่งต่อพัสดุของร้าน: ชิ้นแรก + ชิ้นต่อไปบวกเพิ่มต่อชิ้น และส่งฟรีเมื่อลูกค้าซื้อจากร้านคุณครบยอด (เว้นว่างถ้าไม่มีส่งฟรี) ค่าส่งทั้งหมดเป็นของร้าน ไม่หักค่าธรรมเนียม</p>
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <div class="fgrid">
+      <label class="f" for="ship_first"><span>ค่าส่งชิ้นแรก (บาท)</span><input id="ship_first" name="ship_first" type="number" min="0" max="1000" value="<%= me.ship_first %>"></label>
+      <label class="f" for="ship_next"><span>ชิ้นต่อไปบวกเพิ่ม (บาท/ชิ้น)</span><input id="ship_next" name="ship_next" type="number" min="0" max="1000" value="<%= me.ship_next %>"></label>
+      <label class="f" for="ship_free_over"><span>ส่งฟรีเมื่อซื้อครบ (บาท, ไม่บังคับ)</span><input id="ship_free_over" name="ship_free_over" type="number" min="1" value="<%= me.ship_free_over ?? '' %>" placeholder="ไม่มีส่งฟรี"></label>
+    </div>
+    <label class="f" for="ship_from"><span>ที่อยู่ผู้ส่ง (พิมพ์บนใบปะหน้า)</span><textarea id="ship_from" name="ship_from" maxlength="300" placeholder="บ้านเลขที่ ถนน ตำบล อำเภอ จังหวัด รหัสไปรษณีย์"><%= me.ship_from %></textarea></label>
+    <div><button class="btn">บันทึกค่าส่ง</button></div>
+  </form>
+  <% } %>
   <form class="panel form half" method="post" action="/seller/password">
     <h2>เปลี่ยนรหัสผ่าน</h2>
     <input type="hidden" name="_csrf" value="<%= csrf %>">

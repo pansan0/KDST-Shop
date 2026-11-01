@@ -2,8 +2,7 @@
 <% const chosen = form.address_id || (addresses[0] ? String(addresses[0].id) : 'new'); %>
 <section class="stack narrow-col">
   <h1>ชำระเงิน</h1>
-  <form class="checkout-form" method="post" action="/checkout">
-    <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <form class="checkout-form" method="post" action="/checkout?_csrf=<%= csrf %>" enctype="multipart/form-data">
     <%- include('../partials/errors') %>
 
     <fieldset class="cstep">
@@ -25,7 +24,8 @@
       <h3><span class="n">2</span> ตรวจสินค้า (<%= plan.shipments.length %> พัสดุ)</h3>
       <% for (const g of plan.shipments) { %>
       <div class="stack-sm">
-        <b class="small"><%= g.fulfilled_by === 'platform' ? 'ส่งโดย Inkfold' : 'ส่งโดยร้าน ' + g.shop %></b>
+        <div class="row between"><b class="small"><%= g.fulfilled_by === 'platform' ? 'ส่งโดย Inkfold' : 'ส่งโดยร้าน ' + g.shop %></b><span class="small">ค่าส่ง <b class="num"><%= g.ship_fee ? C.thb(g.ship_fee) : 'ฟรี' %></b></span></div>
+        <%- include('../partials/ship-eta', { g, now }) %>
         <% for (const r of g.rows) { %>
         <div class="row between small"><span><%= r.product.title %> × <%= r.qty %><%- include('../partials/lines', { lines: r.lines }) %></span><span class="num"><%= C.thb(r.unit * r.qty) %></span></div>
         <% } %>
@@ -35,15 +35,26 @@
 
     <div class="cstep">
       <h3><span class="n">3</span> จ่ายเงิน</h3>
-      <div class="opt" style="cursor:default"><input type="radio" checked disabled aria-label="เก็บเงินปลายทาง"><span><b>เก็บเงินปลายทาง (COD)</b><small>จ่ายเงินสดให้พนักงานส่งของเมื่อได้รับแต่ละพัสดุ</small></span></div>
+      <% if (plan.method === 'transfer') { %>
+      <div class="opt" style="cursor:default"><input type="radio" checked disabled aria-label="โอนเงิน"><span><b>โอนผ่านพร้อมเพย์ แล้วแนบสลิป</b><small>ตะกร้าที่มีงาน handmade จ่ายครั้งเดียวทั้งตะกร้า Inkfold ถือเงินไว้จนคุณได้รับของ แล้วจึงจ่ายให้ร้าน</small></span></div>
+      <div class="paybox">
+        <span class="small muted">โอนเข้าพร้อมเพย์</span>
+        <b class="num"><%= settings.promptpay %></b>
+        <span><%= settings.account_name %></span>
+        <span class="small muted">ยอดที่ต้องโอน <b class="num"><%= C.thb(plan.total) %></b></span>
+      </div>
+      <label class="f" for="slip"><span>แนบสลิปการโอน (รูปภาพหรือ PDF)</span><input id="slip" name="slip" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" required></label>
+      <% } else { %>
+      <div class="opt" style="cursor:default"><input type="radio" checked disabled aria-label="เก็บเงินปลายทาง"><span><b>เก็บเงินปลายทาง (COD)</b><small>จ่ายเงินสดให้พนักงานส่งของเมื่อได้รับพัสดุ</small></span></div>
+      <% } %>
       <div class="calc">
         <div class="ln"><span>ราคาสินค้า</span><span class="num"><%= C.thb(plan.items_total) %></span></div>
         <div class="ln"><span>ค่าส่ง (<%= plan.shipments.length %> พัสดุ)</span><span class="num"><%= C.thb(plan.ship_total) %></span></div>
-        <div class="ln tot"><span>ยอดชำระปลายทาง</span><b class="num"><%= C.thb(plan.total) %></b></div>
+        <div class="ln tot"><span><%= plan.method === 'transfer' ? 'ยอดโอน' : 'ยอดชำระปลายทาง' %></span><b class="num"><%= C.thb(plan.total) %></b></div>
       </div>
-      <label class="check wait-ack" for="ack_wait"><input type="checkbox" id="ack_wait" name="ack_wait" value="1" required <%- form.ack_wait ? 'checked' : '' %>> <span>รับทราบว่าสินค้าทุกชิ้นผลิตหลังสั่ง ต้อง<b><%= C.WAIT.text %></b> (คาดว่าได้รับ <%= C.day(C.waitRange(Date.now())[0]) %> – <%= C.day(C.waitRange(Date.now())[1]) %>)</span></label>
+      <label class="check wait-ack" for="ack_wait"><input type="checkbox" id="ack_wait" name="ack_wait" value="1" required <%- form.ack_wait ? 'checked' : '' %>> <span>รับทราบว่าสินค้าทุกชิ้นผลิตหลังสั่ง และต้องรอตาม<b>ระยะเวลาที่แสดงในแต่ละพัสดุด้านบน</b></span></label>
       <button class="btn primary big block">ยืนยันคำสั่งซื้อ</button>
-      <p class="hint center">ยกเลิกเองได้ก่อนร้านเริ่มผลิต · ถ้าปฏิเสธรับพัสดุหลายครั้ง ระบบจะปิดสิทธิ์เก็บเงินปลายทาง</p>
+      <p class="hint center"><%= plan.method === 'transfer' ? 'ได้รับของแล้วกด "ได้รับสินค้าแล้ว" หรือแจ้งปัญหาได้ในหน้าคำสั่งซื้อ · ร้านไม่ส่งตามกำหนด ระบบยกเลิกและคืนเงินให้' : 'ยกเลิกเองได้ก่อนเริ่มพิมพ์ · ถ้าปฏิเสธรับพัสดุหลายครั้ง ระบบจะปิดสิทธิ์เก็บเงินปลายทาง' %></p>
     </div>
   </form>
 </section>

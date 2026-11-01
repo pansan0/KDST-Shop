@@ -5,6 +5,7 @@ const C = require('../lib/catalog');
 const O = require('../lib/options');
 const ORD = require('../lib/orders');
 const ADDR = require('../lib/address');
+const { uploadFields, removeUploaded, removeFile } = require('../lib/upload');
 
 const router = express.Router();
 const flash = (req, type, msg) => { req.session.flash = { type, msg }; };
@@ -34,8 +35,9 @@ router.get('/', (req, res) => {
 function itemView(req, res, p, { form = {}, errors = null, status = 200 } = {}) {
   p.previews = JSON.parse(p.preview_files);
   p.opts = O.parse(p.options);
-  const eta = C.waitRange(Date.now());
-  res.status(status).render('store/item', { title: p.title, portal: 'store', p, form, errors, eta, left: ORD.capacityLeft(p), ship: Number(getSettings().shipping) || 0 });
+  // Books: fixed 7–14 days. Handmade: shop preparation days + 1–3 days transit (from payment confirmation).
+  const eta = p.kind === 'kdp' ? C.waitRange(Date.now()) : C.hmRange(Date.now(), p.lead_days);
+  res.status(status).render('store/item', { title: p.title, portal: 'store', p, form, errors, eta, left: ORD.capacityLeft(p), stock: ORD.stockLeft(p), ship: Number(getSettings().shipping) || 0 });
 }
 
 router.get('/book/:id', (req, res) => res.redirect(301, `/item/${encodeURIComponent(req.params.id)}`));
@@ -50,13 +52,17 @@ router.post('/cart/add/:id', needBuyer(req => `/item/${req.params.id}`), (req, r
   const p = ORD.liveProduct(req.params.id);
   if (!p) return next();
   const qty = Math.min(20, Math.max(1, parseInt(req.body.qty, 10) || 1));
-  const sel = p.kind === 'handmade' ? O.readSelection(O.parse(p.options), req.body) : { lines: [], key: '[]', errors: [] };
+  const sel = p.kind === 'handmade' ? O.readSelection(O.parse(p.options), req.body) : { lines: [], errors: [] };
   const errors = [...sel.errors];
+  // Free-text message to the shop (handmade only), e.g. "ขอห่อของขวัญ" — kept with the item as its own line.
+  const note = p.kind === 'handmade' ? String(req.body.note || '').trim().slice(0, 200) : '';
+  if (/[<>]/.test(note)) errors.push('ข้อความสั่งทำพิเศษมีอักขระที่ใช้ไม่ได้');
   const inCart = db.prepare('SELECT COALESCE(SUM(qty),0) n FROM cart_items WHERE buyer_id=? AND product_id=?').get(req.user.id, p.id).n;
-  if (p.kind === 'handmade' && inCart + qty > ORD.capacityLeft(p)) errors.push(`ร้านรับคิวสินค้านี้ได้อีก ${ORD.capacityLeft(p)} ชิ้นในสัปดาห์นี้`);
+  const left = ORD.capacityLeft(p);
+  if (p.kind === 'handmade' && inCart + qty > left) errors.push(left > inCart ? `สั่งได้อีก ${left - inCart} ชิ้น (รวมที่อยู่ในตะกร้าแล้ว)` : 'สินค้าหมดหรือเต็มคิวแล้ว');
   if (errors.length) return itemView(req, res, p, { form: req.body, errors, status: 400 });
   db.prepare(`INSERT INTO cart_items(buyer_id,product_id,qty,options,added_at) VALUES (?,?,?,?,?)
-              ON CONFLICT(buyer_id,product_id,options) DO UPDATE SET qty=MIN(20, qty+excluded.qty)`).run(req.user.id, p.id, qty, sel.key, Date.now());
+              ON CONFLICT(buyer_id,product_id,options) DO UPDATE SET qty=MIN(20, qty+excluded.qty)`).run(req.user.id, p.id, qty, JSON.stringify(ORD.withNote(sel.lines, note)), Date.now());
   flash(req, 'good', `เพิ่ม “${p.title}” ลงตะกร้าแล้ว`);
   res.redirect('/cart');
 });
@@ -78,7 +84,7 @@ router.post('/cart/:id/remove', needBuyer('/cart'), (req, res) => {
   res.redirect('/cart');
 });
 
-/* ---------- checkout (cash on delivery) ---------- */
+/* ---------- checkout: books only → cash on delivery; anything handmade → transfer + slip ---------- */
 function checkoutView(req, res, { form = {}, errors = null, status = 200 } = {}) {
   const settings = getSettings();
   const cart = ORD.loadCart(req.user.id);
@@ -86,22 +92,26 @@ function checkoutView(req, res, { form = {}, errors = null, status = 200 } = {})
   const plan = ORD.planShipments(cart, settings);
   const addresses = ADDR.listAddresses(req.user.id);
   const me = db.prepare('SELECT display_name, phone FROM users WHERE id=?').get(req.user.id);
-  res.status(status).render('store/checkout', { title: 'ชำระเงิน', portal: 'store', cart, plan, addresses, me, form, errors });
+  res.status(status).render('store/checkout', { title: 'ชำระเงิน', portal: 'store', cart, plan, addresses, me, form, errors, now: Date.now() });
 }
 router.get('/checkout', needBuyer('/checkout'), (req, res) => checkoutView(req, res));
-router.post('/checkout', needBuyer('/checkout'), (req, res) => {
-  // Everything is made to order: the buyer must acknowledge the 7–14 day wait before ordering.
-  if (!req.body.ack_wait) return checkoutView(req, res, { form: req.body, errors: [`ติ๊กยืนยันว่ารับทราบ: ${C.WAIT.text}`], status: 400 });
+router.post('/checkout', needBuyer('/checkout'), uploadFields([{ name: 'slip', maxCount: 1 }], '/checkout'), (req, res) => {
+  const slip = req.files?.slip?.[0];
+  const fail = errors => { removeUploaded(req); return checkoutView(req, res, { form: req.body, errors, status: 400 }); };
+  // Everything is made to order: the buyer must acknowledge the waiting time shown for each parcel.
+  if (!req.body.ack_wait) return fail(['ติ๊กยืนยันว่ารับทราบระยะเวลารอสินค้าของแต่ละพัสดุ']);
   let address = req.body.address_id && req.body.address_id !== 'new' ? ADDR.myAddress(req.user.id, req.body.address_id) : null;
   if (!address) {
     const r = ADDR.readAddress(req.body);
-    if (r.errors.length) return checkoutView(req, res, { form: req.body, errors: r.errors, status: 400 });
+    if (r.errors.length) return fail(r.errors);
     address = r.address;
     if (req.body.save_address) ADDR.saveAddress(req.user.id, address, false);
   }
   const buyer = db.prepare('SELECT * FROM users WHERE id=?').get(req.user.id);
-  const out = ORD.placeOrder(buyer, address);
-  if (out.errors) return checkoutView(req, res, { form: req.body, errors: out.errors, status: 400 });
+  const out = ORD.placeOrder(buyer, address, { slip: slip?.filename });
+  if (out.errors) return fail(out.errors);
+  // A slip attached to a books-only (COD) cart is not needed.
+  if (slip && !db.prepare("SELECT 1 FROM orders WHERE code=? AND method='transfer'").get(out.code)) removeFile(slip.filename);
   res.redirect(`/account/orders/${out.code}?new=1`);
 });
 

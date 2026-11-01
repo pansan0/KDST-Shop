@@ -40,6 +40,14 @@
     </details>
   </div>
 
+  <form class="panel form" method="post" action="/account/refund-account" id="refund">
+    <h2>บัญชีรับเงินคืน</h2>
+    <p class="hint">ใช้เมื่อมีการคืนเงินค่าสินค้า handmade (ร้านไม่ส่ง หรือแอดมินตัดสินให้คืนเงิน) แอดมินจะโอนให้ด้วยมือแล้วแจ้งเลขอ้างอิงในหน้าคำสั่งซื้อ</p>
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label class="f" for="refund_account"><span>พร้อมเพย์หรือเลขบัญชี + ธนาคาร + ชื่อบัญชี</span><input id="refund_account" name="refund_account" maxlength="200" value="<%= me.refund_account || '' %>" placeholder="เช่น พร้อมเพย์ 089-xxx-xxxx ชื่อ สมใจ ใจดี"></label>
+    <div><button class="btn">บันทึก</button></div>
+  </form>
+
   <form class="panel form" method="post" action="/account/password">
     <h2>เปลี่ยนรหัสผ่าน</h2>
     <input type="hidden" name="_csrf" value="<%= csrf %>">

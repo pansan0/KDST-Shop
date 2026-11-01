@@ -16,8 +16,9 @@
   <div class="kpis">
     <div class="kpi"><b><%= products.filter(p => p.status === 'approved').length %></b><span>สินค้าที่วางขาย</span></div>
     <div class="kpi"><b><%= products.filter(p => p.status === 'pending').length %></b><span>รอแอดมินตรวจ</span></div>
-    <a class="kpi link <%= badges.orders ? 'alert' : '' %>" href="/seller/orders"><b><%= badges.orders %></b><span>พัสดุ handmade ที่ต้องทำ</span></a>
-    <div class="kpi"><b><%= C.thb(stats.balance) %></b><span>รอโอนให้คุณ · <a href="/seller/sales">ดูรายละเอียด</a></span></div>
+    <a class="kpi link <%= badges.orders ? 'alert' : '' %>" href="/seller/orders"><b><%= badges.orders %></b><span>พัสดุ handmade ที่ต้องจัดส่ง/มีปัญหา</span></a>
+    <div class="kpi"><b><%= C.thb(stats.balance) %></b><span>ถอนได้ (รอแอดมินโอน) · <a href="/seller/sales">ดูรายละเอียด</a></span></div>
+    <% if (stats.pending) { %><div class="kpi"><b><%= C.thb(stats.pending) %></b><span>รอปล่อย (ลูกค้ายังไม่ได้รับของ)</span></div><% } %>
   </div>
   <% if (hmOk && metrics.total) { %>
   <div class="kpis">

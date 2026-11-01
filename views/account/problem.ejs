@@ -1,0 +1,26 @@
+<%- include('../partials/head') %>
+<section class="stack narrow-col">
+  <p class="small"><a href="/account/orders/<%= s.code %>" class="muted">← กลับคำสั่งซื้อ <%= s.code %></a></p>
+  <h1>แจ้งปัญหาพัสดุ</h1>
+  <div class="panel stack-sm">
+    <b>ร้าน <%= s.shop %></b>
+    <div class="small muted"><%= s.carrier %> <span class="num"><%= s.tracking %></span> · ส่งเมื่อ <%= C.dt(s.shipped_at) %></div>
+    <% for (const i of s.items) { %><div class="small"><%= i.title %> × <%= i.qty %><%- include('../partials/lines', { lines: i.lines }) %></div><% } %>
+  </div>
+  <form class="panel form" method="post" enctype="multipart/form-data" action="/account/shipments/<%= s.id %>/problem?_csrf=<%= csrf %>">
+    <%- include('../partials/errors') %>
+    <fieldset class="optset">
+      <legend>เกิดอะไรขึ้น</legend>
+      <div class="opts">
+        <% for (const [k, t] of Object.entries(C.PROBLEM_KINDS)) { %>
+        <label class="opt" for="k_<%= k %>"><input type="radio" id="k_<%= k %>" name="kind" value="<%= k %>" required <%- form.kind === k ? 'checked' : '' %>><span><b><%= t %></b></span></label>
+        <% } %>
+      </div>
+    </fieldset>
+    <label class="f" for="detail"><span>รายละเอียด</span><textarea id="detail" name="detail" minlength="10" maxlength="2000" required placeholder="เช่น ลูกปัดแตก 3 เม็ด / ได้สีฟ้าแต่สั่งสีชมพู / สถานะขนส่งขึ้นว่าส่งแล้วแต่ไม่ได้รับ"><%= form.detail || '' %></textarea></label>
+    <label class="f" for="problem_images"><span>แนบรูป (ไม่บังคับ สูงสุด 3 รูป) เช่น รูปสินค้า กล่อง หรือหน้าจอสถานะขนส่ง</span><input id="problem_images" name="problem_images" type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
+    <p class="hint">ระหว่างแอดมินตรวจ ระบบจะยังไม่ปล่อยเงินให้ร้าน แอดมินจะตัดสินให้คืนเงินหรือปล่อยเงินให้ร้าน และแจ้งผลในหน้าคำสั่งซื้อ</p>
+    <div><button class="btn primary">ส่งเรื่อง</button></div>
+  </form>
+</section>
+<%- include('../partials/foot') %>

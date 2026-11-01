@@ -1,0 +1,57 @@
+<%- include('../partials/head') %>
+<% const open = disputes.filter(d => d.status === 'open'); const pending = refunds.filter(r => r.status === 'pending'); %>
+<section class="stack">
+  <div><h1>เคลมและคืนเงิน</h1><p class="muted lead">ลูกค้าแจ้งปัญหาได้หลังร้านส่งพัสดุและก่อนกดได้รับ ระหว่างนั้นเงินร้านจะยังไม่ถูกปล่อย ตัดสินได้ 2 แบบ: คืนเงินลูกค้า (ทั้งหมดหรือบางส่วน) หรือปล่อยเงินให้ร้าน
+    · ยังไม่เชื่อมธนาคาร: รายการคืนเงินเป็น "รอคืนเงิน" แอดมินโอนผ่านแอปธนาคารแล้วกรอกเลขอ้างอิงที่นี่</p></div>
+
+  <div class="panel stack">
+    <h2>เรื่องร้องเรียน <%= open.length ? '(' + open.length + ' รอตัดสิน)' : '' %></h2>
+    <% if (!disputes.length) { %><div class="empty">ยังไม่มีเรื่องร้องเรียน</div><% } %>
+    <% for (const d of disputes) { const [dt, dc] = C.DISPUTE_STATUS[d.status]; const max = d.items_total + d.ship_fee; %>
+    <div class="claim stack-sm" id="d<%= d.id %>">
+      <div class="row between"><b>#<%= d.id %> · <span class="num"><%= d.code %></span> · <%= C.PROBLEM_KINDS[d.kind] %></b><%- pill(dt, dc) %></div>
+      <div class="small muted">ลูกค้า <%= d.buyer %> · ร้าน <%= d.shop %> · <%= d.carrier %> <span class="num"><%= d.tracking %></span> ส่งเมื่อ <%= C.dt(d.shipped_at) %> · แจ้งเมื่อ <%= C.dt(d.created_at) %></div>
+      <div class="small"><% for (const i of d.items) { %><div><%= i.title %> × <%= i.qty %><%- include('../partials/lines', { lines: i.lines }) %></div><% } %></div>
+      <p class="prose"><%= d.detail %></p>
+      <% if (d.imgs.length) { %><div class="previews"><% d.imgs.forEach((_, i) => { %><a href="/files/dispute/<%= d.id %>/<%= i %>" target="_blank" rel="noopener"><img src="/files/dispute/<%= d.id %>/<%= i %>" alt="รูปปัญหา <%= i + 1 %>"></a><% }) %></div><% } %>
+      <% if (d.status === 'open') { %>
+      <form class="stack-sm" method="post" action="/admin/disputes/<%= d.id %>/decide">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <div class="row">
+          <label class="check" for="dr<%= d.id %>"><input type="radio" id="dr<%= d.id %>" name="decision" value="refund" required> คืนเงินลูกค้า</label>
+          <label class="f" for="amt<%= d.id %>"><span>ยอดคืน (สูงสุด <%= C.thb(max) %>)</span><input id="amt<%= d.id %>" name="amount" type="number" step="0.01" min="0.01" max="<%= max %>" value="<%= max %>" class="w-amt"></label>
+          <label class="check" for="dl<%= d.id %>"><input type="radio" id="dl<%= d.id %>" name="decision" value="release"> ปล่อยเงินให้ร้าน</label>
+        </div>
+        <label class="f" for="dn<%= d.id %>"><span>เหตุผล (ลูกค้าและร้านจะเห็น)</span><input id="dn<%= d.id %>" name="note" required minlength="3" maxlength="500"></label>
+        <div><button class="btn primary sm">บันทึกผลการตัดสิน</button></div>
+      </form>
+      <% } else { %><div class="small">ผล: <%= d.decision_note %> <span class="muted">· <%= C.dt(d.decided_at) %></span></div><% } %>
+    </div>
+    <% } %>
+  </div>
+
+  <div class="panel" id="refunds">
+    <h2>คืนเงินลูกค้า <%= pending.length ? '(รอคืน ' + C.thb(pending.reduce((a, r) => a + r.amount, 0)) + ')' : '' %></h2>
+    <% if (!refunds.length) { %><div class="empty">ยังไม่มีรายการคืนเงิน</div><% } else { %>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>คำสั่งซื้อ</th><th>ลูกค้า / บัญชีรับเงินคืน</th><th>เหตุผล</th><th class="r">ยอด</th><th>สถานะ</th></tr></thead>
+      <tbody><% for (const r of refunds) { const [rt, rc] = C.REFUND_STATUS[r.status]; %>
+        <tr>
+          <td class="small"><b class="num"><%= r.code %></b><br><span class="muted"><%= C.dt(r.created_at) %></span></td>
+          <td class="small"><%= r.buyer %> · <span class="num"><%= r.buyer_phone %></span><br><% if (r.refund_account) { %><b><%= r.refund_account %></b><% } else { %><span class="bad-text">ลูกค้ายังไม่กรอกบัญชีรับเงินคืน</span><% } %></td>
+          <td class="small"><%= r.reason %></td>
+          <td class="num r"><b><%= C.thb(r.amount) %></b></td>
+          <td><%- pill(rt, rc) %>
+            <% if (r.status === 'pending') { %>
+            <form class="inline" method="post" action="/admin/refunds/<%= r.id %>/paid" data-confirm="บันทึกว่าโอนคืน <%= C.thb(r.amount) %> ให้ <%= r.buyer %> แล้ว?">
+              <input type="hidden" name="_csrf" value="<%= csrf %>"><input name="ref" placeholder="เลขอ้างอิงการโอน" aria-label="เลขอ้างอิงการโอน" required><button class="btn sm primary">บันทึกว่าโอนแล้ว</button>
+            </form>
+            <% } else { %><div class="small muted">อ้างอิง <span class="num"><%= r.ref %></span> · <%= r.admin_name %> · <%= C.dt(r.paid_at) %></div><% } %>
+          </td>
+        </tr>
+      <% } %></tbody>
+    </table></div>
+    <% } %>
+  </div>
+</section>
+<%- include('../partials/foot') %>

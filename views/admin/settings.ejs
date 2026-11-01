@@ -15,6 +15,17 @@
         <label class="f" for="cod_limit"><span>ยอดเก็บเงินปลายทางสูงสุดต่อคำสั่งซื้อ (0 = ไม่จำกัด)</span><input id="cod_limit" name="cod_limit" type="number" min="0" value="<%= settings.cod_limit %>"></label>
         <label class="f" for="return_limit"><span>ตีกลับกี่ครั้งจึงปิดสิทธิ์ COD (0 = ไม่ปิด)</span><input id="return_limit" name="return_limit" type="number" min="0" max="20" value="<%= settings.return_limit %>"></label>
       </div>
+      <h3>โอนเงิน (ตะกร้าที่มีงาน handmade)</h3>
+      <div class="fgrid">
+        <label class="f" for="promptpay"><span>พร้อมเพย์รับเงิน</span><input id="promptpay" name="promptpay" maxlength="40" value="<%= settings.promptpay %>"></label>
+        <label class="f" for="account_name"><span>ชื่อบัญชี</span><input id="account_name" name="account_name" maxlength="100" value="<%= settings.account_name %>"></label>
+      </div>
+      <h3>กติกาเวลาของพัสดุ handmade</h3>
+      <div class="fgrid">
+        <label class="f" for="release_days"><span>ปล่อยเงินให้ร้านอัตโนมัติ หลังส่งกี่วัน (ถ้าไม่มีการแจ้งปัญหา)</span><input id="release_days" name="release_days" type="number" min="1" max="60" value="<%= settings.release_days %>"></label>
+        <label class="f" for="late_alert_days"><span>แจ้งเตือนแอดมิน เมื่อเลยวันกำหนดส่งกี่วัน</span><input id="late_alert_days" name="late_alert_days" type="number" min="0" max="30" value="<%= settings.late_alert_days %>"></label>
+        <label class="f" for="auto_cancel_days"><span>ยกเลิกและตั้งคืนเงินอัตโนมัติ เมื่อเลยวันกำหนดส่งกี่วัน</span><input id="auto_cancel_days" name="auto_cancel_days" type="number" min="1" max="60" value="<%= settings.auto_cancel_days %>"></label>
+      </div>
       <div class="calc small">
         <div>ค่าพิมพ์ที่ใช้คำนวณ: ขาวดำ <%= C.thb(C.PRINT.bwPerPage) %>/หน้า · สี่สี <%= C.thb(C.PRINT.colorPerPage) %>/หน้า · ปกและเข้าเล่ม <%= C.thb(C.PRINT.base) %> (6×9 นิ้ว <%= C.thb(C.PRINT.baseSmall) %>)</div>
         <div>หนังสือ: ผู้ขายได้ <%= C.ROYALTY * 100 %>% ของราคาขาย หักค่าพิมพ์ (แก้ได้ใน <code>lib/catalog.js</code>) · handmade: ผู้ขายได้ราคาขายหักค่าธรรมเนียมด้านบน บวกค่าส่งที่ร้านตั้ง</div>

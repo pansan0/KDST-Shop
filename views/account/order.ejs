@@ -1,4 +1,10 @@
 <%- include('../partials/head') %>
+<%
+  const prepaid = order.method === 'transfer';
+  const pendingRefund = order.refunds.some(r => r.status === 'pending');
+  // Expected delivery per parcel: books 7–14 days from ordering; handmade = prep days + 1–3 days from payment.
+  const eta = s => s.flow === 'hm' ? (s.paid_at ? C.hmRange(s.paid_at, s.prep_days) : null) : C.waitRange(order.created_at);
+%>
 <section class="stack narrow-col">
   <% if (isNew) { %>
   <div class="done">
@@ -6,7 +12,11 @@
     <h1>สั่งซื้อเรียบร้อย</h1>
     <p>เลขคำสั่งซื้อของคุณ</p>
     <div class="done-code num"><%= order.code %></div>
-    <p class="small muted">เตรียมเงินสด <b class="num"><%= C.thb(order.total) %></b> ไว้จ่ายเมื่อได้รับของ<%= order.shipments.length > 1 ? ` (แยกจ่ายตามพัสดุ ${order.shipments.length} กล่อง)` : '' %></p>
+    <% if (prepaid) { %>
+    <p class="small muted">ได้รับสลิปแล้ว แอดมินจะตรวจภายใน 24 ชั่วโมง ร้านเริ่มเตรียมสินค้าหลังยืนยันการชำระ</p>
+    <% } else { %>
+    <p class="small muted">เตรียมเงินสด <b class="num"><%= C.thb(order.total) %></b> ไว้จ่ายเมื่อได้รับของ</p>
+    <% } %>
   </div>
   <% } else { %>
   <div class="row between">
@@ -15,45 +25,91 @@
   </div>
   <% } %>
 
-  <% if (order.shipments.some(s => ['placed', 'in_production', 'shipped'].includes(s.status))) { const [a, b] = C.waitRange(order.created_at); %>
-  <div class="wait-note" role="note"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div><b>คาดว่าจะได้รับ <%= C.day(a) %> – <%= C.day(b) %></b><span><%= C.WAIT.text %> นับจากวันสั่ง</span></div></div>
+  <% if (prepaid) { const [pt, pc] = C.PAY_STATUS[order.pay_status]; %>
+  <div class="panel stack-sm">
+    <div class="row between"><b>การชำระเงิน · โอนพร้อมเพย์</b><%- pill(pt, pc) %></div>
+    <div class="small">ยอดโอน <b class="num"><%= C.thb(order.total) %></b><% if (order.paid_at) { %> · ยืนยันเมื่อ <%= C.dt(order.paid_at) %><% } %><% if (order.slip_file) { %> · <a href="/files/slip/<%= order.id %>" target="_blank" rel="noopener">ดูสลิปที่ส่ง</a><% } %></div>
+    <% if (order.pay_status === 'rejected') { %>
+    <div class="flash bad small"><%= order.slip_note %></div>
+    <form class="form" method="post" enctype="multipart/form-data" action="/account/orders/<%= order.code %>/slip?_csrf=<%= csrf %>">
+      <div class="paybox"><span class="small muted">โอนเข้าพร้อมเพย์</span><b class="num"><%= settings.promptpay %></b><span><%= settings.account_name %></span></div>
+      <label class="f" for="slip"><span>แนบสลิปใหม่</span><input id="slip" name="slip" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" required></label>
+      <button class="btn primary">ส่งสลิปใหม่</button>
+    </form>
+    <% } %>
+  </div>
   <% } %>
-  <% order.shipments.forEach((s, n) => { const [st, cls] = C.shipStatus(s); const step = C.SHIP_STEP[s.status]; %>
+
+  <% if (pendingRefund && !order.refund_account) { %>
+  <form class="panel form" method="post" action="/account/refund-account" id="refund">
+    <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="/account/orders/<%= order.code %>">
+    <b>มีเงินรอคืนให้คุณ กรอกบัญชีรับเงินคืน</b>
+    <label class="f" for="refund_account"><span>พร้อมเพย์หรือเลขบัญชี + ธนาคาร + ชื่อบัญชี</span><input id="refund_account" name="refund_account" maxlength="200" required placeholder="เช่น พร้อมเพย์ 089-xxx-xxxx ชื่อ สมใจ ใจดี"></label>
+    <div><button class="btn primary">บันทึก</button></div>
+  </form>
+  <% } %>
+
+  <% order.shipments.forEach((s, n) => { const [st, cls] = C.shipStatus(s); const [steps, at] = C.SHIP_STEPS[s.flow]; const step = at[s.status] ?? 0; const range = eta(s); %>
   <div class="panel stack">
     <div class="row between">
       <div><b>พัสดุ <%= n + 1 %> · <%= s.fulfilled_by === 'platform' ? 'ส่งโดย Inkfold' : 'ส่งโดยร้าน ' + s.shop %></b>
-        <div class="small muted">เก็บเงินปลายทาง <span class="num"><%= C.thb(s.items_total + s.ship_fee) %></span> (รวมค่าส่ง <%= C.thb(s.ship_fee) %>)</div></div>
+        <div class="small muted"><%= prepaid ? 'ยอดพัสดุนี้' : 'เก็บเงินปลายทาง' %> <span class="num"><%= C.thb(s.items_total + s.ship_fee) %></span> (ค่าส่ง <%= s.ship_fee ? C.thb(s.ship_fee) : 'ฟรี' %>)</div></div>
       <%- pill(st, cls) %>
     </div>
-    <% if (!['cancelled', 'returned'].includes(s.status)) { %>
+    <% if (!['cancelled', 'returned', 'refunded'].includes(s.status)) { %>
     <ol class="track-steps" aria-label="ขั้นตอนพัสดุ <%= n + 1 %>">
-      <% ['รับคำสั่งซื้อ', s.fulfilled_by === 'platform' ? 'กำลังพิมพ์' : 'กำลังทำ', 'จัดส่งแล้ว', 'ได้รับสินค้า'].forEach((t, i) => { %><li class="<%= step > i ? 'on' : '' %>"><span class="dot"></span><%= t %></li><% }) %>
+      <% steps.forEach((t, i) => { %><li class="<%= step > i ? 'on' : '' %>"><span class="dot"></span><%= t %></li><% }) %>
     </ol>
     <% } %>
+    <% if (C.OPEN_SHIP.includes(s.status) && s.status !== 'problem') { %>
+      <% if (range) { %><p class="small">คาดว่าจะได้รับ <b><%= C.day(range[0]) %> – <%= C.day(range[1]) %></b><% if (!['shipped'].includes(s.status)) { %> · <span class="muted"><%= s.fulfilled_by === 'platform' ? 'ส่งออกภายใน' : 'ร้านต้องส่งภายใน' %> <%= C.day(s.due_at) %></span><% } %></p>
+      <% } else { %><p class="small muted"><%= C.hmWaitText(s.prep_days) %> นับจากแอดมินยืนยันการชำระ</p><% } %>
+    <% } %>
     <% if (s.note && ['cancelled', 'returned'].includes(s.status)) { %><div class="flash bad small"><%= s.note %></div><% } %>
-    <% if (s.tracking) { %><div class="paybox"><span class="small muted">เลขพัสดุ</span><b class="num"><%= s.tracking %></b></div><% } %>
-    <% if (C.OPEN_SHIP.includes(s.status) && s.status !== 'shipped') { %><p class="small muted">ร้านต้องส่งพัสดุออกภายใน <%= C.day(s.due_at) %></p><% } %>
+    <% if (s.auto_note) { %><div class="small muted"><%= s.auto_note %></div><% } %>
+    <% if (s.tracking) { %><div class="paybox"><span class="small muted"><%= s.carrier || 'เลขพัสดุ' %></span><b class="num"><%= s.tracking %></b><% if (s.shipped_at) { %><span class="small muted">ส่งเมื่อ <%= C.dt(s.shipped_at) %></span><% } %></div><% } %>
     <ul class="list-rows">
       <% for (const i of s.items) { %>
       <li class="cart-row">
         <a href="/item/<%= i.product_id %>"><img class="cart-img" src="/files/cover/<%= i.product_id %>" alt=""></a>
-        <div class="stack-sm"><span><%= i.title %> × <%= i.qty %></span><%- include('../partials/lines', { lines: i.lines }) %></div>
+        <div class="stack-sm"><span><%= i.title %> × <%= i.qty %></span><%- include('../partials/lines', { lines: i.lines }) %><% if (i.note) { %><div class="small"><span class="muted">ข้อความสั่งทำพิเศษ:</span> <%= i.note %></div><% } %></div>
         <span class="num"><%= C.thb(i.unit_price * i.qty) %></span>
       </li>
       <% } %>
     </ul>
-    <% if (s.status === 'placed') { %>
-    <form method="post" action="/account/shipments/<%= s.id %>/cancel" data-confirm="ยกเลิกพัสดุนี้?">
-      <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn ghost">ยกเลิกพัสดุนี้</button>
-    </form>
+    <% for (const d of s.disputes) { const [dt, dc] = C.DISPUTE_STATUS[d.status]; %>
+    <div class="claim">
+      <div class="row between"><b>แจ้งปัญหา: <%= C.PROBLEM_KINDS[d.kind] %></b><%- pill(dt, dc) %></div>
+      <p class="small prose"><%= d.detail %></p>
+      <% if (d.imgs.length) { %><div class="previews"><% d.imgs.forEach((_, i) => { %><a href="/files/dispute/<%= d.id %>/<%= i %>" target="_blank" rel="noopener"><img src="/files/dispute/<%= d.id %>/<%= i %>" alt="รูปปัญหา <%= i + 1 %>"></a><% }) %></div><% } %>
+      <% if (d.decision_note) { %><div class="small"><span class="muted">ผลจากแอดมิน:</span> <%= d.decision_note %></div><% } %>
+    </div>
     <% } %>
+    <% for (const r of s.refunds) { const [rt, rc] = C.REFUND_STATUS[r.status]; %>
+    <div class="row between small claim"><span>คืนเงิน <b class="num"><%= C.thb(r.amount) %></b> · <span class="muted"><%= r.reason %></span><% if (r.ref) { %> · อ้างอิง <span class="num"><%= r.ref %></span><% } %></span><%- pill(rt, rc) %></div>
+    <% } %>
+    <div class="row">
+      <% if (s.flow === 'hm' && s.status === 'shipped') { %>
+      <form method="post" action="/account/shipments/<%= s.id %>/receive" data-confirm="ได้รับสินค้าครบและเรียบร้อยแล้ว? เมื่อยืนยัน เราจะจ่ายเงินให้ร้าน">
+        <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn primary">ได้รับสินค้าแล้ว</button>
+      </form>
+      <a class="btn" href="/account/shipments/<%= s.id %>/problem">แจ้งปัญหา</a>
+      <% } %>
+      <% if (s.status === 'placed' && s.flow !== 'hm') { %>
+      <form method="post" action="/account/shipments/<%= s.id %>/cancel" data-confirm="ยกเลิกพัสดุนี้?">
+        <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn ghost">ยกเลิกพัสดุนี้</button>
+      </form>
+      <% } %>
+    </div>
+    <% if (s.flow === 'hm' && s.status === 'shipped') { %><p class="hint">ถ้าไม่กดหรือแจ้งปัญหาภายใน <%= settings.release_days %> วันหลังร้านส่ง ระบบจะถือว่าได้รับเรียบร้อยและจ่ายเงินให้ร้าน</p><% } %>
   </div>
   <% }) %>
 
   <dl class="pdp-specs">
     <dt>ส่งถึง</dt><dd><%= order.ship_name %> · <span class="num"><%= order.ship_phone %></span><br><span class="muted"><%= order.ship_address %></span></dd>
     <dt>ยอดรวม</dt><dd class="num"><b><%= C.thb(order.total) %></b> <span class="muted">(สินค้า <%= C.thb(order.items_total) %> + ค่าส่ง <%= C.thb(order.ship_total) %>)</span></dd>
-    <dt>ชำระเงิน</dt><dd>เก็บเงินปลายทาง</dd>
+    <dt>ชำระเงิน</dt><dd><%= prepaid ? 'โอนพร้อมเพย์ (จ่ายครั้งเดียวทุกพัสดุ)' : 'เก็บเงินปลายทาง' %></dd>
+    <% if (order.refunds.length) { %><dt>บัญชีรับเงินคืน</dt><dd><%= order.refund_account || '–' %> <a class="small" href="/account#refund">แก้ไข</a></dd><% } %>
   </dl>
   <div class="row">
     <a class="btn" href="/account/orders">คำสั่งซื้อทั้งหมด</a>

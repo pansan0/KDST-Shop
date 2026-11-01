@@ -1,0 +1,10 @@
+<%
+  // Waiting time for one planned parcel (cart / checkout). Books: fixed 7–14 days. Handmade: prep days + 1–3 days transit from payment.
+  const pod = g.fulfilled_by === 'platform';
+  const [a, b] = pod ? C.waitRange(now) : C.hmRange(now, g.prep_days);
+%>
+<div class="ship-eta small"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  <span><b><%= pod ? C.WAIT.text : C.hmWaitText(g.prep_days) %></b> · คาดว่าได้รับ <b><%= C.day(a) %> – <%= C.day(b) %></b><%= pod ? '' : ' (นับจากยืนยันการชำระ)' %></span></div>
+<% if (!pod) { const sh = g.shopShip; %>
+<div class="small muted">ค่าส่งร้านนี้: ชิ้นแรก <%= C.thb(sh.ship_first) %><%= sh.ship_next ? ` · ชิ้นต่อไป +${C.thb(sh.ship_next)}` : '' %><% if (sh.ship_free_over != null) { %> · ส่งฟรีเมื่อครบ <%= C.thb(sh.ship_free_over) %><% if (g.items_total < sh.ship_free_over) { %> (ขาดอีก <%= C.thb(sh.ship_free_over - g.items_total) %>)<% } %><% } %></div>
+<% } %>

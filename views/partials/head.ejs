@@ -3,8 +3,8 @@
     store: user && user.role === 'buyer'
       ? [['/', 'ร้านค้า'], ['/cart', 'ตะกร้า', 'cart'], ['/account/orders', 'คำสั่งซื้อของฉัน'], ['/account', 'บัญชี']]
       : [['/', 'ร้านค้า'], ['/account/login', 'เข้าสู่ระบบ'], ['/seller', 'ขายกับเรา']],
-    seller: [['/seller', 'สินค้าของฉัน'], ['/seller/orders', 'คำสั่งซื้อ', 'orders'], ['/seller/sales', 'ยอดขายและการรับเงิน'], ['/seller/account', 'บัญชี']],
-    admin: [['/admin', 'ภาพรวม'], ['/admin/products', 'ตรวจสินค้า', 'products'], ['/admin/orders', 'คำสั่งซื้อ', 'orders'], ['/admin/sellers', 'ผู้ขาย', 'apps'], ['/admin/buyers', 'ผู้ซื้อ'], ['/admin/payouts', 'จ่ายเงิน'], ['/admin/settings', 'ตั้งค่า']],
+    seller: [['/seller', 'สินค้าของฉัน'], ['/seller/orders', 'ออเดอร์ที่ต้องส่ง', 'orders'], ['/seller/sales', 'ยอดขายและการรับเงิน'], ['/seller/account', 'บัญชี']],
+    admin: [['/admin', 'ภาพรวม'], ['/admin/products', 'ตรวจสินค้า', 'products'], ['/admin/orders', 'คำสั่งซื้อ', 'orders'], ['/admin/claims', 'เคลม/คืนเงิน', 'claims'], ['/admin/sellers', 'ผู้ขาย', 'apps'], ['/admin/buyers', 'ผู้ซื้อ'], ['/admin/payouts', 'จ่ายเงิน'], ['/admin/settings', 'ตั้งค่า']],
   };
   const ROLE = { store: 'buyer', seller: 'seller', admin: 'admin' }[portal];
   const signedIn = user && user.role === ROLE;

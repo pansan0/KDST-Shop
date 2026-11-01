@@ -4,14 +4,14 @@
   <div class="panel">
     <% if (!sellers.length) { %><div class="empty">ยังไม่มียอดค้างจ่าย</div><% } else { %>
     <div class="tbl-wrap"><table>
-      <thead><tr><th>ผู้ขาย</th><th>บัญชีรับเงิน</th><th class="r">รายได้ผู้ขาย</th><th class="r">โอนแล้ว</th><th class="r">ค้างจ่าย</th><th>บันทึกการโอน</th></tr></thead>
+      <thead><tr><th>ผู้ขาย</th><th>บัญชีรับเงิน</th><th class="r">รายได้ผู้ขาย</th><th class="r">โอนแล้ว</th><th class="r">ถอนได้ (ค้างจ่าย)</th><th>บันทึกการโอน</th></tr></thead>
       <tbody><% for (const s of sellers) { %>
         <tr>
           <td><b><%= s.display_name %></b><div class="small muted"><%= s.email %></div></td>
           <td class="small"><% if (s.payout_account) { %><span class="num"><%= s.payout_account %></span> <%= s.payout_bank %><br><%= s.payout_name %><% } else { %><span class="muted">ยังไม่กรอก</span><% } %></td>
           <td class="num r"><%= C.thb(s.stats.earned) %></td>
           <td class="num r"><%= C.thb(s.stats.paid) %></td>
-          <td class="num r"><b><%= C.thb(s.stats.balance) %></b></td>
+          <td class="num r"><b><%= C.thb(s.stats.balance) %></b><% if (s.stats.pending) { %><div class="small muted">รอปล่อยอีก <%= C.thb(s.stats.pending) %></div><% } %></td>
           <td><% if (s.stats.balance > 0) { %>
             <form class="inline" method="post" action="/admin/payouts" data-confirm="บันทึกว่าโอนเงินให้ <%= s.display_name %> แล้ว?">
               <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="seller_id" value="<%= s.id %>">

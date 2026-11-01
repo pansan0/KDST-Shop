@@ -3,9 +3,12 @@
   <div><span class="eyebrow">ระบบหลังร้าน</span><h1>ภาพรวม</h1></div>
   <div class="kpis">
     <a class="kpi link <%= badges.products ? 'alert' : '' %>" href="/admin/products"><b><%= badges.products %></b><span>สินค้ารอตรวจ</span></a>
-    <a class="kpi link <%= badges.orders ? 'alert' : '' %>" href="/admin/orders?tab=platform"><b><%= badges.orders %></b><span>พัสดุหนังสือที่ต้องพิมพ์/ส่ง</span></a>
+    <a class="kpi link <%= badges.orders ? 'alert' : '' %>" href="/admin/orders?tab=platform"><b><%= badges.orders %></b><span>งานรอแอดมิน: พิมพ์/ส่งหนังสือ + ตรวจสลิป</span></a>
+    <a class="kpi link <%= k.slips ? 'alert' : '' %>" href="/admin/orders?tab=slips"><b><%= k.slips %></b><span>สลิปรอตรวจ</span></a>
     <a class="kpi link" href="/admin/orders?tab=cod"><b><%= k.awaiting_cod %></b><span>รอยืนยันเก็บเงินปลายทาง</span></a>
-    <a class="kpi link <%= k.late ? 'alert' : '' %>" href="/admin/orders?tab=late"><b><%= k.late %></b><span>พัสดุร้าน handmade เลยกำหนด</span></a>
+    <a class="kpi link <%= k.disputes ? 'alert' : '' %>" href="/admin/claims"><b><%= k.disputes %></b><span>เรื่องร้องเรียนรอตัดสิน</span></a>
+    <a class="kpi link <%= k.refunds_due ? 'alert' : '' %>" href="/admin/claims#refunds"><b><%= C.thb(k.refunds_due) %></b><span>รอคืนเงินลูกค้า</span></a>
+    <a class="kpi link <%= k.late ? 'alert' : '' %>" href="/admin/orders?tab=late"><b><%= k.late %></b><span>พัสดุ handmade เลยกำหนดเกิน <%= settings.late_alert_days %> วัน</span></a>
     <a class="kpi link <%= badges.apps ? 'alert' : '' %>" href="/admin/sellers#apps"><b><%= badges.apps %></b><span>ใบสมัคร handmade</span></a>
   </div>
   <div class="kpis">

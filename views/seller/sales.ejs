@@ -2,21 +2,22 @@
 <section class="stack">
   <h1>ยอดขายและการรับเงิน</h1>
   <div class="kpis">
-    <div class="kpi"><b><%= stats.units %></b><span>ชิ้นที่ขายได้ (ส่งถึงแล้ว)</span></div>
-    <div class="kpi"><b><%= C.thb(stats.earned) %></b><span>รายได้สะสม</span></div>
+    <div class="kpi"><b><%= stats.units %></b><span>ชิ้นที่ขายได้ (ลูกค้าได้รับแล้ว)</span></div>
+    <div class="kpi"><b><%= C.thb(stats.pending) %></b><span>รอปล่อย (ชำระแล้ว แต่ลูกค้ายังไม่ได้รับ)</span></div>
+    <div class="kpi"><b><%= C.thb(stats.earned) %></b><span>รายได้ที่ปล่อยแล้วสะสม</span></div>
     <div class="kpi"><b><%= C.thb(stats.paid) %></b><span>โอนให้แล้ว</span></div>
-    <div class="kpi accent"><b><%= C.thb(stats.balance) %></b><span>รอโอนให้คุณ</span></div>
+    <div class="kpi accent"><b><%= C.thb(stats.balance) %></b><span>ถอนได้ · รอแอดมินโอน</span></div>
   </div>
   <div class="panel">
     <h2>รายการขาย</h2>
-    <p class="hint">รายได้นับเมื่อพัสดุส่งถึงและเก็บเงินปลายทางแล้ว · หนังสือ: ราคา × <%= C.ROYALTY * 100 %>% − ค่าพิมพ์ · handmade: ราคารวมตัวเลือก − ค่าธรรมเนียม <%= fee %>% + ค่าส่งที่คุณตั้ง</p>
+    <p class="hint">handmade: เงินเป็น "รอปล่อย" เมื่อแอดมินยืนยันการชำระ และ "ถอนได้" เมื่อลูกค้ากดได้รับ หรือครบ <%= settings.release_days %> วันหลังส่งโดยไม่มีการแจ้งปัญหา · หนังสือ: นับเมื่อส่งถึงแล้ว · หนังสือ: ราคา × <%= C.ROYALTY * 100 %>% − ค่าพิมพ์ · handmade: ราคารวมตัวเลือก − ค่าธรรมเนียม <%= fee %>% + ค่าส่งที่คุณตั้ง</p>
     <% if (!items.length) { %><div class="empty">ยังไม่มีคำสั่งซื้อ</div><% } else { %>
     <div class="tbl-wrap"><table>
       <thead><tr><th>วันที่</th><th>เลขที่</th><th>สินค้า</th><th class="r">จำนวน</th><th>สถานะพัสดุ</th><th class="r">คุณได้</th></tr></thead>
-      <tbody><% for (const i of items) { const [t, c] = C.shipStatus(i); const counted = i.status === 'delivered'; %>
+      <tbody><% for (const i of items) { const [t, c] = C.shipStatus(i); const counted = ['delivered', 'released'].includes(i.status); const pending = i.method === 'transfer' && ['preparing', 'shipped', 'problem'].includes(i.status); %>
         <tr><td class="small"><%= C.dt(i.created_at) %></td><td class="num small"><%= i.code %></td>
           <td><%= i.title %><%- include('../partials/lines', { lines: JSON.parse(i.options) }) %></td><td class="num r"><%= i.qty %></td><td><%- pill(t, c) %></td>
-          <td class="num r <%= counted ? '' : 'muted' %>"><%= C.thb(i.qty * i.earn_unit) %><%= counted ? '' : ' (ยังไม่นับ)' %></td></tr>
+          <td class="num r <%= counted ? '' : 'muted' %>"><%= C.thb(i.qty * i.earn_unit) %><%= counted ? '' : pending ? ' (รอปล่อย)' : ' (ไม่นับ)' %></td></tr>
       <% } %></tbody>
     </table></div>
     <% } %>

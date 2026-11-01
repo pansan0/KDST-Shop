@@ -1,4 +1,4 @@
-// Serves uploaded files with access control. Print PDFs (interior and cover) and seller application photos are never public.
+// Serves uploaded files with access control. Print PDFs, slips, problem photos and seller application photos are never public.
 const express = require('express');
 const { db } = require('../db');
 const { filePath } = require('../lib/upload');
@@ -43,6 +43,21 @@ router.get('/files/pdf/:id', (req, res) => {
   if (!p || !isOwnerOrAdmin(req, p.seller_id)) return res.sendStatus(404);
   res.set('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(p.pdf_name || 'interior.pdf')}`);
   send(res, p.pdf_file, 'private, no-store');
+});
+
+// Payment slip: admin, or the buyer who placed the order.
+router.get('/files/slip/:orderId', (req, res) => {
+  const o = db.prepare('SELECT buyer_id,slip_file FROM orders WHERE id=?').get(req.params.orderId);
+  if (!o || !req.user || !(req.user.role === 'admin' || (req.user.role === 'buyer' && req.user.id === o.buyer_id))) return res.sendStatus(404);
+  send(res, o.slip_file, 'private, no-store');
+});
+
+// Problem photos: admin, the buyer who reported, and the shop whose parcel it is.
+router.get('/files/dispute/:id/:i', (req, res) => {
+  const d = db.prepare('SELECT d.buyer_id,d.images,s.seller_id FROM disputes d JOIN shipments s ON s.id=d.shipment_id WHERE d.id=?').get(req.params.id);
+  const u = req.user;
+  if (!d || !u || !(u.role === 'admin' || (u.role === 'buyer' && u.id === d.buyer_id) || (u.role === 'seller' && u.id === d.seller_id))) return res.sendStatus(404);
+  send(res, JSON.parse(d.images)[Number(req.params.i)], 'private, no-store');
 });
 
 router.get('/files/app/:id/:i', (req, res) => {

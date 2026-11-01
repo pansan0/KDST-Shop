@@ -3,6 +3,9 @@
   const hm = p.kind === 'handmade';
   const catLabel = C.ALL_CATS[p.category];
   const full = hm && left <= 0;
+  const soldOut = hm && stock <= 0;
+  const shipText = !hm ? C.thb(ship) + ' ต่อพัสดุ'
+    : C.thb(p.ship_first) + (p.ship_next ? ` · ชิ้นต่อไป +${C.thb(p.ship_next)}` : ' (ชิ้นต่อไปไม่เพิ่ม)') + (p.ship_free_over != null ? ` · ส่งฟรีเมื่อซื้อจากร้านนี้ครบ ${C.thb(p.ship_free_over)}` : '');
   const val = k => form['opt_' + k];
 %>
 <nav class="crumbs small" aria-label="ตำแหน่ง"><a href="/">ร้านค้า</a><span aria-hidden="true">›</span><a href="/?cat=<%= p.kind %>"><%= hm ? 'Handmade' : 'หนังสือ' %></a><span aria-hidden="true">›</span><a href="/?cat=<%= p.category %>"><%= catLabel %></a></nav>
@@ -26,15 +29,15 @@
       <% if (p.subtitle) { %><p class="muted"><%= p.subtitle %></p><% } %>
       <p class="small"><%= hm ? 'ทำโดย' : 'โดย' %> <b><%= p.shop %></b><% if (hm) { %> · <%= C.MADE_BY[p.made_by] %><% } %></p>
     </div>
-    <div class="pdp-price"><b class="num" id="livePrice"><%= C.thb(p.price) %></b><span class="small muted">+ ค่าส่ง <%= C.thb(hm ? p.ship_fee : ship) %></span></div>
+    <div class="pdp-price"><b class="num" id="livePrice"><%= C.thb(p.price) %></b><span class="small muted">+ ค่าส่ง <%= shipText %></span></div>
 
     <div class="wait-note" role="note">
       <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      <div><b><%= C.WAIT.text %></b><span>สินค้านี้<%= hm ? 'ทำ' : 'พิมพ์' %>ใหม่หลังคุณสั่ง คาดว่าจะได้รับ <b><%= C.day(eta[0]) %> – <%= C.day(eta[1]) %></b></span></div>
+      <div><b><%= hm ? C.hmWaitText(p.lead_days) : C.WAIT.text %></b><span><%= hm ? 'ร้านเริ่มเตรียมเมื่อยืนยันการชำระเงิน' : 'พิมพ์ใหม่หลังคุณสั่ง' %> · ถ้าสั่งวันนี้ คาดว่าจะได้รับ <b><%= C.day(eta[0]) %> – <%= C.day(eta[1]) %></b></span></div>
     </div>
     <ul class="perks">
       <li><%- include('_leaf') %> <%= hm ? 'ทำเฉพาะชิ้นที่มีคนสั่ง ร้านส่งตรงถึงคุณ' : 'พิมพ์เฉพาะเล่มที่มีคนสั่ง Inkfold ส่งให้' %> ไม่มีของเหลือทิ้ง</li>
-      <li><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> เก็บเงินปลายทาง จ่ายเมื่อได้รับของ</li>
+      <li><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> <%= hm ? 'โอนเงินผ่านพร้อมเพย์ Inkfold ถือเงินไว้จนคุณได้รับของ มีปัญหาแจ้งคืนเงินได้' : 'เก็บเงินปลายทาง จ่ายเมื่อได้รับของ (ถ้าสั่งคู่กับงาน handmade จะโอนรวมครั้งเดียว)' %></li>
     </ul>
 
     <form class="buybox" id="addForm" method="post" action="/cart/add/<%= p.id %>" data-base="<%= p.price %>" data-options="<%= p.options %>">
@@ -66,15 +69,18 @@
         </label>
         <% } %>
       <% } %>
+      <% if (hm) { %>
+      <label class="f optset" for="note"><span>ข้อความสั่งทำพิเศษถึงร้าน (ไม่บังคับ)</span><textarea id="note" name="note" maxlength="200" rows="2" placeholder="เช่น ขอห่อของขวัญ / ขอโทนสีอ่อน"><%= form.note || '' %></textarea></label>
+      <% } %>
       <div class="row">
         <div class="qty">
           <button type="button" class="qbtn" data-step="-1" aria-label="ลดจำนวน">−</button>
           <input id="qty" name="qty" type="number" min="1" max="20" value="<%= form.qty || 1 %>" aria-label="จำนวน">
           <button type="button" class="qbtn" data-step="1" aria-label="เพิ่มจำนวน">+</button>
         </div>
-        <button class="btn primary big grow" <%- full ? 'disabled' : '' %>><%= full ? 'เต็มคิวสัปดาห์นี้' : 'ใส่ตะกร้า' %></button>
+        <button class="btn primary big grow" <%- full ? 'disabled' : '' %>><%= soldOut ? 'สินค้าหมด' : full ? 'เต็มคิวสัปดาห์นี้' : 'ใส่ตะกร้า' %></button>
       </div>
-      <p class="hint"><%= C.WAIT.text %> นับจากวันสั่ง<% if (hm && !full && left <= 5) { %> · รับคิวได้อีก <%= left %> ชิ้นในสัปดาห์นี้<% } %></p>
+      <p class="hint"><%= hm ? C.hmWaitText(p.lead_days) + ' นับจากยืนยันการชำระ' : C.WAIT.text + ' นับจากวันสั่ง' %><% if (hm && stock !== Infinity && !soldOut) { %> · เหลือ <%= stock %> ชิ้น<% } else if (hm && !full && left <= 5) { %> · รับคิวได้อีก <%= left %> ชิ้นในสัปดาห์นี้<% } %></p>
     </form>
 
     <% if (p.description) { %><p class="prose"><%= p.description %></p><% } %>
@@ -97,6 +103,6 @@
 
 <div class="buybar" id="buybar">
   <div><span class="small muted">ราคา</span><b class="num" id="barPrice"><%= C.thb(p.price) %></b></div>
-  <button class="btn primary big" form="addForm" <%- full ? 'disabled' : '' %>><%= full ? 'เต็มคิว' : 'ใส่ตะกร้า' %></button>
+  <button class="btn primary big" form="addForm" <%- full ? 'disabled' : '' %>><%= soldOut ? 'สินค้าหมด' : full ? 'เต็มคิว' : 'ใส่ตะกร้า' %></button>
 </div>
 <%- include('../partials/foot', { scripts: ['item'] }) %>

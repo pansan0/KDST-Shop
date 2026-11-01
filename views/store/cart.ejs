@@ -1,4 +1,5 @@
 <%- include('../partials/head') %>
+<% const now = Date.now(); %>
 <section class="stack narrow-col">
   <h1>ตะกร้า</h1>
   <% if (!cart.length) { %>
@@ -28,7 +29,8 @@
       <b class="num"><%= C.thb(r.unit * r.qty) %></b>
     </div>
     <% } %>
-    <div class="row between small muted"><span>ค่าส่งพัสดุนี้</span><span class="num"><%= C.thb(g.ship_fee) %></span></div>
+    <%- include('../partials/ship-eta', { g, now }) %>
+    <div class="row between small"><span>ค่าส่งพัสดุนี้</span><span class="num"><%= g.ship_fee ? C.thb(g.ship_fee) : 'ส่งฟรี' %></span></div>
   </div>
   <% } %>
   <% for (const r of cart.filter(r => !r.product)) { %>
@@ -38,7 +40,9 @@
   </div>
   <% } %>
 
-  <div class="wait-note" role="note"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div><b><%= C.WAIT.text %></b><span>ทุกชิ้นผลิตใหม่หลังคุณสั่ง คาดว่าจะได้รับ <b><%= C.day(C.waitRange(Date.now())[0]) %> – <%= C.day(C.waitRange(Date.now())[1]) %></b></span></div></div>
+  <div class="wait-note" role="note"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div>
+    <b>ทุกชิ้นผลิตใหม่หลังคุณสั่ง ดูเวลารอของแต่ละพัสดุด้านบน</b>
+    <span><%= plan.method === 'transfer' ? 'ตะกร้านี้มีงาน handmade: จ่ายครั้งเดียวด้วยการโอนพร้อมเพย์และแนบสลิป แต่ละร้านแยกส่งพัสดุของตัวเอง' : 'หนังสือล้วน: เก็บเงินปลายทาง' %></span></div></div>
   <div class="calc">
     <div class="ln"><span>ราคาสินค้า</span><span class="num"><%= C.thb(plan.items_total) %></span></div>
     <div class="ln"><span>ค่าส่ง (<%= plan.shipments.length %> พัสดุ)</span><span class="num"><%= C.thb(plan.ship_total) %></span></div>

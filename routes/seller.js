@@ -24,13 +24,13 @@ const me = req => db.prepare('SELECT * FROM users WHERE id=?').get(req.user.id);
 const fixName = n => Buffer.from(n || '', 'latin1').toString('utf8').slice(0, 200);
 
 router.use((req, res, next) => {
-  res.locals.badges = { orders: db.prepare("SELECT COUNT(*) n FROM shipments WHERE seller_id=? AND fulfilled_by='seller' AND status IN ('placed','in_production')").get(req.user.id).n };
+  res.locals.badges = { orders: db.prepare("SELECT COUNT(*) n FROM shipments WHERE seller_id=? AND fulfilled_by='seller' AND status IN ('preparing','placed','in_production','problem')").get(req.user.id).n };
   next();
 });
 
 router.get('/', (req, res) => {
   const products = db.prepare(`SELECT p.*, (SELECT COALESCE(SUM(i.qty),0) FROM order_items i JOIN shipments s ON s.id=i.shipment_id
-                                 WHERE i.product_id=p.id AND s.status='delivered') AS sold
+                                 WHERE i.product_id=p.id AND s.status IN ('delivered','released')) AS sold
                                FROM products p WHERE seller_id=? ORDER BY updated_at DESC`).all(req.user.id);
   for (const p of products) p.review = latestReview.get(p.id);
   const fee = Number(getSettings().hm_fee_pct) || 0;
@@ -67,7 +67,7 @@ router.post('/handmade/apply', appUpload, (req, res) => {
 /* ---------- products ---------- */
 const DEFAULTS = {
   kdp: { kind: 'kdp', category: 'coloring', age: '6-9', trim: '8.5x11', pages: 48, interior: 'bw', paper: 'white', finish: 'matte', price: 199 },
-  handmade: { kind: 'handmade', category: 'jewelry', price: 159, made_by: 'solo', method: 'handmade', lead_days: 3, weekly_capacity: 20, ship_fee: 40 },
+  handmade: { kind: 'handmade', category: 'jewelry', price: 159, made_by: 'solo', method: 'handmade', lead_days: 3, weekly_capacity: 20, stock: null },
 };
 
 function readForm(body, kind) {
@@ -83,7 +83,9 @@ function readForm(body, kind) {
   return Object.assign(f, {
     category: pick(C.HM_CATS, body.category, 'jewelry'), age: 'all', materials: str(body.materials, 300),
     made_by: pick(C.MADE_BY, body.made_by, 'solo'), method: pick(C.METHOD, body.method, 'handmade'),
-    lead_days: int(body.lead_days, 1, 60, 3), weekly_capacity: int(body.weekly_capacity, 1, 500, 20), ship_fee: int(body.ship_fee, 0, 1000, 40),
+    lead_days: int(body.lead_days, 1, 60, 3), weekly_capacity: int(body.weekly_capacity, 1, 500, 20),
+    // Empty = made to order (no stock count). Shipping is set per shop on the account page.
+    stock: String(body.stock ?? '').trim() === '' ? null : int(body.stock, 0, 100000, 0),
     metal: body.metal ? 1 : 0, for_kids: body.for_kids ? 1 : 0, small_parts: body.small_parts ? 1 : 0,
     options: JSON.stringify(options), _optErrors: errors,
   });
@@ -109,7 +111,7 @@ function validate(f, submit, { hasCover, hasImage, coverIsPdf, hasPdf, previewCo
     if (!hasPdf) e.push('แนบไฟล์เนื้อใน PDF');
   } else {
     if (!f.materials) e.push('ระบุวัสดุที่ใช้');
-    if (f.lead_days > C.MAX_LEAD_DAYS) e.push(`ระยะผลิตต้องไม่เกิน ${C.MAX_LEAD_DAYS} วัน เพราะลูกค้าได้รับแจ้งว่า${C.WAIT.text}`);
+    if (f.lead_days > C.MAX_LEAD_DAYS) e.push(`ระยะเวลาเตรียมสินค้าต้องอยู่ระหว่าง 1–${C.MAX_LEAD_DAYS} วัน`);
     if (!body.declare_handmade) e.push('ยืนยันว่าสินค้านี้ทำหรือประกอบด้วยมือของคุณเอง');
     if (f.metal && !body.declare_metal) e.push('ยืนยันว่าชิ้นส่วนโลหะผ่านเกณฑ์นิกเกิล ตะกั่ว และแคดเมียม');
     if ((f.for_kids || f.small_parts) && !body.declare_kids) e.push('ยืนยันเรื่องความปลอดภัยสำหรับเด็ก');
@@ -222,32 +224,64 @@ router.post('/products/:id/delete', (req, res, next) => {
   res.redirect('/seller');
 });
 
-/* ---------- handmade orders to fulfil ---------- */
-// PDPA: the buyer's name/phone/address is shown only while the parcel is still being handled, and for 30 days after delivery.
-const showBuyer = s => C.OPEN_SHIP.includes(s.status) || (s.status === 'delivered' && Date.now() - s.delivered_at < 30 * C.DAY);
-const SHIP_FILTERS = { todo: 'ต้องทำ', shipped: 'จัดส่งแล้ว', done: 'เสร็จสิ้น', all: 'ทั้งหมด' };
-const FILTER_SQL = { todo: "status IN ('placed','in_production')", shipped: "status='shipped'", done: "status IN ('delivered','cancelled','returned')", all: '1=1' };
+/* ---------- handmade orders to ship ---------- */
+// PDPA: the buyer's name/phone/address is shown only for the shop's own parcels, once paid, while it is being handled,
+// and for 30 days after the buyer has it.
+const PAID_OR_COD = ['preparing', 'shipped', 'problem', 'placed', 'in_production'];
+const showBuyer = s => PAID_OR_COD.includes(s.status) || (['delivered', 'released'].includes(s.status) && Date.now() - (s.delivered_at || s.released_at) < 30 * C.DAY);
+const SHIP_TABS = {
+  todo: ['ต้องจัดส่ง', "s.status IN ('preparing','placed','in_production')"],
+  unpaid: ['รอลูกค้าชำระ', "s.status='awaiting_payment'"],
+  shipped: ['จัดส่งแล้ว', "s.status='shipped'"],
+  problem: ['มีปัญหา', "s.status='problem'"],
+  done: ['เสร็จสิ้น', "s.status IN ('delivered','released','refunded','cancelled','returned')"],
+  all: ['ทั้งหมด', '1=1'],
+};
+const SHIP_ROWS = `SELECT s.*, o.code, o.method, o.ship_name, o.ship_phone, o.ship_address FROM shipments s JOIN orders o ON o.id=s.order_id
+                   WHERE s.seller_id=? AND s.fulfilled_by='seller'`;
+function withItems(s) {
+  s.flow = C.shipFlow(s);
+  s.items = db.prepare('SELECT * FROM order_items WHERE shipment_id=? ORDER BY id').all(s.id).map(i => ({ ...i, lines: JSON.parse(i.options) }));
+  s.disputes = db.prepare('SELECT * FROM disputes WHERE shipment_id=? ORDER BY id').all(s.id).map(d => ({ ...d, imgs: JSON.parse(d.images) }));
+  s.showBuyer = showBuyer(s);
+  return s;
+}
 
 router.get('/orders', (req, res) => {
-  const tab = SHIP_FILTERS[req.query.tab] ? req.query.tab : 'todo';
-  const ships = db.prepare(`SELECT s.*, o.code, o.ship_name, o.ship_phone, o.ship_address FROM shipments s JOIN orders o ON o.id=s.order_id
-                            WHERE s.seller_id=? AND s.fulfilled_by='seller' AND ${FILTER_SQL[tab]} ORDER BY s.due_at ASC LIMIT 200`).all(req.user.id);
-  const items = db.prepare('SELECT * FROM order_items WHERE shipment_id=? ORDER BY id');
-  for (const s of ships) { s.items = items.all(s.id).map(i => ({ ...i, lines: JSON.parse(i.options) })); s.showBuyer = showBuyer(s); }
-  res.render('seller/orders', { title: 'คำสั่งซื้อ', portal: 'seller', ships, tab, filters: SHIP_FILTERS, metrics: sellerMetrics(req.user.id) });
+  const tab = SHIP_TABS[req.query.tab] ? req.query.tab : 'todo';
+  const ships = db.prepare(`${SHIP_ROWS} AND ${SHIP_TABS[tab][1]} ORDER BY s.due_at ASC LIMIT 200`).all(req.user.id).map(withItems);
+  const counts = Object.fromEntries(Object.entries(SHIP_TABS).map(([k, [, w]]) => [k, db.prepare(`SELECT COUNT(*) n FROM (${SHIP_ROWS} AND ${w})`).get(req.user.id).n]));
+  res.render('seller/orders', { title: 'ออเดอร์ที่ต้องจัดส่ง', portal: 'seller', ships, tab, tabs: SHIP_TABS, counts, metrics: sellerMetrics(req.user.id) });
 });
+
+// Printable shipping label (opens in a new tab; print from the browser).
+router.get('/shipments/:id/label', (req, res, next) => {
+  const s = db.prepare(`${SHIP_ROWS} AND s.id=?`).get(req.user.id, req.params.id);
+  if (!s) return next();
+  withItems(s);
+  if (!PAID_OR_COD.includes(s.status)) { flash(req, 'bad', 'พิมพ์ใบปะหน้าได้เมื่อลูกค้าชำระเงินแล้ว และพัสดุยังไม่ปิดงาน'); return res.redirect('/seller/orders'); }
+  const shop = db.prepare('SELECT display_name, phone, ship_from FROM users WHERE id=?').get(req.user.id);
+  res.render('seller/label', { s, shop });
+});
+
 router.post('/shipments/:id/:move', (req, res) => {
   const move = req.params.move;
-  if (!['start', 'ship', 'cancel'].includes(move)) return res.redirect('/seller/orders');
-  const out = ORD.moveShipment('seller', req.user.id, Number(req.params.id), move, { tracking: str(req.body.tracking, 60), note: str(req.body.note, 300) });
-  flash(req, out.error ? 'bad' : 'good', out.error || { start: 'รับงานแล้ว เริ่มทำได้เลย', ship: 'บันทึกเลขพัสดุแล้ว', cancel: 'ยกเลิกพัสดุแล้ว ผู้ซื้อจะเห็นเหตุผล' }[move]);
-  const tab = typeof req.body.tab === 'string' && SHIP_FILTERS[req.body.tab] ? req.body.tab : 'todo';
-  res.redirect(`/seller/orders?tab=${tab}`);
+  const tab = typeof req.body.tab === 'string' && SHIP_TABS[req.body.tab] ? req.body.tab : 'todo';
+  if (!['start', 'ship', 'cancel'].includes(move)) return res.redirect(`/seller/orders?tab=${tab}`);
+  // Carrier: one of the listed companies, or the seller types another name.
+  const key = C.CARRIERS[req.body.carrier] ? req.body.carrier : '';
+  const carrier = key === 'other' ? str(req.body.carrier_other, 40) : key ? C.CARRIERS[key] : '';
+  const out = ORD.moveShipment('seller', req.user.id, Number(req.params.id), move, { tracking: str(req.body.tracking, 60), carrier, note: str(req.body.note, 300) });
+  flash(req, out.error ? 'bad' : 'good', out.error || {
+    start: 'รับงานแล้ว เริ่มทำได้เลย', ship: 'บันทึกการจัดส่งแล้ว ลูกค้าเห็นเลขพัสดุแล้ว',
+    cancel: out.shipment?.method === 'transfer' ? 'ยกเลิกพัสดุแล้ว ระบบตั้งรายการคืนเงินให้ลูกค้า' : 'ยกเลิกพัสดุแล้ว ผู้ซื้อจะเห็นเหตุผล',
+  }[move]);
+  res.redirect(`/seller/orders?tab=${!out.error && move === 'ship' ? 'shipped' : tab}`);
 });
 
 /* ---------- sales & account ---------- */
 router.get('/sales', (req, res) => {
-  const items = db.prepare(`SELECT i.*, o.code, s.status, s.fulfilled_by, s.created_at FROM order_items i
+  const items = db.prepare(`SELECT i.*, o.code, o.method, s.status, s.fulfilled_by, s.created_at FROM order_items i
                             JOIN shipments s ON s.id=i.shipment_id JOIN orders o ON o.id=i.order_id
                             WHERE i.seller_id=? ORDER BY s.created_at DESC LIMIT 300`).all(req.user.id);
   const payouts = db.prepare('SELECT amount,ref,note,created_at FROM payouts WHERE seller_id=? ORDER BY created_at DESC').all(req.user.id);
@@ -255,7 +289,8 @@ router.get('/sales', (req, res) => {
 });
 
 router.get('/account', (req, res) => {
-  const m = db.prepare('SELECT email,display_name,phone,payout_account,payout_name,payout_bank,created_at FROM users WHERE id=?').get(req.user.id);
+  const m = db.prepare(`SELECT email,display_name,phone,payout_account,payout_name,payout_bank,handmade_status,
+                               ship_first,ship_next,ship_free_over,ship_from,created_at FROM users WHERE id=?`).get(req.user.id);
   res.render('seller/account', { title: 'บัญชีของฉัน', portal: 'seller', me: m });
 });
 router.post('/account/profile', (req, res) => {
@@ -266,6 +301,14 @@ router.post('/account/profile', (req, res) => {
     flash(req, 'good', 'บันทึกข้อมูลร้านแล้ว');
   }
   res.redirect('/seller/account');
+});
+// Shop shipping (handmade): first piece, each extra piece, optional free-shipping threshold, sender address for labels.
+router.post('/account/shipping', (req, res) => {
+  const first = int(req.body.ship_first, 0, 1000, 40), next = int(req.body.ship_next, 0, 1000, 0);
+  const free = String(req.body.ship_free_over ?? '').trim() === '' ? null : int(req.body.ship_free_over, 1, 1000000, 0);
+  db.prepare('UPDATE users SET ship_first=?, ship_next=?, ship_free_over=?, ship_from=? WHERE id=?').run(first, next, free, str(req.body.ship_from, 300), req.user.id);
+  flash(req, 'good', 'บันทึกค่าส่งของร้านแล้ว');
+  res.redirect('/seller/account#shipping');
 });
 router.post('/account/payout', (req, res) => {
   db.prepare('UPDATE users SET payout_account=?, payout_name=?, payout_bank=? WHERE id=?')

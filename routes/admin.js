@@ -1,5 +1,5 @@
 // Admin portal: review listings against the standards checklist, vet handmade sellers, print & ship KDP,
-// oversee seller shipments and COD settlement, manage buyers, pay sellers.
+// check transfer slips, oversee seller shipments (late / problems), settle COD, decide claims, refund buyers, pay sellers.
 const express = require('express');
 const cfg = require('../config');
 const { db, getSettings, setSetting, sellerStats, sellerMetrics } = require('../db');
@@ -8,6 +8,7 @@ const O = require('../lib/options');
 const ORD = require('../lib/orders');
 const A = require('../lib/auth');
 const mountAuth = require('../lib/auth-routes');
+const { lateCutoff } = require('../lib/jobs');
 
 const router = express.Router();
 mountAuth(router, 'admin', { passwordBack: '/admin/settings' });
@@ -20,7 +21,8 @@ const back = (req, d) => (typeof req.body.back === 'string' && /^\/admin(\/|$|\?
 router.use((req, res, next) => {
   res.locals.badges = {
     products: db.prepare("SELECT COUNT(*) n FROM products WHERE status='pending'").get().n,
-    orders: db.prepare("SELECT COUNT(*) n FROM shipments WHERE fulfilled_by='platform' AND status IN ('placed','in_production')").get().n,
+    orders: db.prepare("SELECT (SELECT COUNT(*) FROM shipments WHERE fulfilled_by='platform' AND status IN ('placed','in_production')) + (SELECT COUNT(*) FROM orders WHERE pay_status='awaiting') n").get().n,
+    claims: db.prepare("SELECT (SELECT COUNT(*) FROM disputes WHERE status='open') + (SELECT COUNT(*) FROM refunds WHERE status='pending') n").get().n,
     apps: db.prepare("SELECT COUNT(*) n FROM seller_applications WHERE status='applied'").get().n,
   };
   next();
@@ -31,12 +33,15 @@ const PRODUCT_LIST = `SELECT p.*, u.display_name AS shop, u.email AS seller_emai
 router.get('/', (req, res) => {
   const now = Date.now();
   const k = db.prepare(`SELECT
-      (SELECT COALESCE(SUM(items_total),0) FROM shipments WHERE status='delivered') AS revenue,
-      (SELECT COUNT(*) FROM shipments WHERE status='shipped') AS awaiting_cod,
-      (SELECT COUNT(*) FROM shipments WHERE fulfilled_by='seller' AND status IN ('placed','in_production') AND due_at<?) AS late,
+      (SELECT COALESCE(SUM(items_total),0) FROM shipments WHERE status IN ('delivered','released')) AS revenue,
+      (SELECT COUNT(*) FROM shipments s JOIN orders o ON o.id=s.order_id WHERE s.status='shipped' AND o.method='cod') AS awaiting_cod,
+      (SELECT COUNT(*) FROM shipments WHERE fulfilled_by='seller' AND status IN ('preparing','placed','in_production') AND due_at<?) AS late,
+      (SELECT COUNT(*) FROM orders WHERE pay_status='awaiting') AS slips,
+      (SELECT COUNT(*) FROM disputes WHERE status='open') AS disputes,
+      (SELECT COALESCE(SUM(amount),0) FROM refunds WHERE status='pending') AS refunds_due,
       (SELECT COUNT(*) FROM users WHERE role='seller') AS sellers,
       (SELECT COUNT(*) FROM users WHERE role='buyer') AS buyers,
-      (SELECT COUNT(*) FROM products WHERE status='approved') AS live`).get(now);
+      (SELECT COUNT(*) FROM products WHERE status='approved') AS live`).get(lateCutoff(now));
   const owed = db.prepare("SELECT id FROM users WHERE role='seller'").all().reduce((a, s) => a + sellerStats(s.id).balance, 0);
   const products = db.prepare(PRODUCT_LIST + " WHERE p.status='pending' ORDER BY p.submitted_at LIMIT 5").all();
   const apps = db.prepare("SELECT a.*, u.display_name AS shop FROM seller_applications a JOIN users u ON u.id=a.seller_id WHERE a.status='applied' ORDER BY a.created_at LIMIT 5").all();
@@ -112,34 +117,88 @@ router.post('/products/:id/reinstate', (req, res, next) => {
   res.redirect(`/admin/products/${p.id}`);
 });
 
-/* ---------- shipments ---------- */
+/* ---------- payments, shipments ---------- */
+// Tabs over shipments. "late" uses the admin setting late_alert_days past the ship-by date.
 const SHIP_TABS = {
+  slips: ['รอตรวจสลิป', null],
   platform: ['พิมพ์และส่ง (Inkfold)', "s.fulfilled_by='platform' AND s.status IN ('placed','in_production')"],
-  cod: ['รอยืนยันเก็บเงิน', "s.status='shipped'"],
-  seller: ['ผู้ขายกำลังทำ', "s.fulfilled_by='seller' AND s.status IN ('placed','in_production')"],
-  late: ['เลยกำหนดส่ง', "s.status IN ('placed','in_production') AND s.due_at<@now"],
-  done: ['เสร็จสิ้น', "s.status IN ('delivered','cancelled','returned')"],
+  cod: ['รอยืนยันเก็บเงินปลายทาง', "s.status='shipped' AND o.method='cod'"],
+  hm_prep: ['ร้านกำลังเตรียม', "s.fulfilled_by='seller' AND s.status IN ('preparing','placed','in_production')"],
+  late: ['เลยกำหนดส่ง', "s.fulfilled_by='seller' AND s.status IN ('preparing','placed','in_production') AND s.due_at<@late"],
+  hm_shipped: ['handmade จัดส่งแล้ว', "s.fulfilled_by='seller' AND s.status='shipped' AND o.method='transfer'"],
+  problem: ['มีปัญหา', "s.status='problem'"],
+  done: ['เสร็จสิ้น', "s.status IN ('delivered','released','refunded','cancelled','returned')"],
   all: ['ทั้งหมด', '1=1'],
 };
+const SHIP_FROM = `FROM shipments s JOIN orders o ON o.id=s.order_id JOIN users b ON b.id=o.buyer_id LEFT JOIN users u ON u.id=s.seller_id`;
 router.get('/orders', (req, res) => {
   const tab = SHIP_TABS[req.query.tab] ? req.query.tab : 'platform';
-  const ships = db.prepare(`SELECT s.*, o.code, o.ship_name, o.ship_phone, o.ship_address, b.display_name AS buyer, u.display_name AS shop
-      FROM shipments s JOIN orders o ON o.id=s.order_id JOIN users b ON b.id=o.buyer_id LEFT JOIN users u ON u.id=s.seller_id
-      WHERE ${SHIP_TABS[tab][1]} ORDER BY s.due_at ${tab === 'done' || tab === 'all' ? 'DESC' : 'ASC'} LIMIT 300`).all({ now: Date.now() });
+  const params = { late: lateCutoff() };
+  const counts = Object.fromEntries(Object.entries(SHIP_TABS).map(([k, [, w]]) => [k, w
+    ? db.prepare(`SELECT COUNT(*) n ${SHIP_FROM} WHERE ${w}`).get(params).n
+    : db.prepare("SELECT COUNT(*) n FROM orders WHERE pay_status='awaiting'").get().n]));
+  if (tab === 'slips') {
+    const orders = db.prepare("SELECT o.code FROM orders o WHERE o.pay_status IN ('awaiting','rejected') ORDER BY o.pay_status='awaiting' DESC, o.created_at").all()
+      .map(o => ORD.orderDetail('o.code=?', o.code));
+    return res.render('admin/orders', { title: 'คำสั่งซื้อ', portal: 'admin', ships: [], orders, tab, tabs: SHIP_TABS, counts, lateAt: params.late });
+  }
+  const ships = db.prepare(`SELECT s.*, o.code, o.method, o.pay_status, o.ship_name, o.ship_phone, o.ship_address, b.display_name AS buyer, u.display_name AS shop
+      ${SHIP_FROM} WHERE ${SHIP_TABS[tab][1]} ORDER BY s.due_at ${tab === 'done' || tab === 'all' ? 'DESC' : 'ASC'} LIMIT 300`).all(params);
   const items = db.prepare('SELECT i.*, p.pdf_file, p.cover_pdf FROM order_items i JOIN products p ON p.id=i.product_id WHERE i.shipment_id=? ORDER BY i.id');
-  for (const s of ships) s.items = items.all(s.id).map(i => ({ ...i, lines: JSON.parse(i.options) }));
-  const counts = Object.fromEntries(Object.entries(SHIP_TABS).map(([k, [, w]]) => [k, db.prepare(`SELECT COUNT(*) n FROM shipments s WHERE ${w}`).get({ now: Date.now() }).n]));
-  res.render('admin/orders', { title: 'คำสั่งซื้อ', portal: 'admin', ships, tab, tabs: SHIP_TABS, counts });
+  const openDispute = db.prepare("SELECT id FROM disputes WHERE shipment_id=? AND status='open'");
+  for (const s of ships) {
+    s.flow = C.shipFlow(s);
+    s.items = items.all(s.id).map(i => ({ ...i, lines: JSON.parse(i.options) }));
+    s.dispute = openDispute.get(s.id);
+  }
+  res.render('admin/orders', { title: 'คำสั่งซื้อ', portal: 'admin', ships, orders: [], tab, tabs: SHIP_TABS, counts, lateAt: params.late });
 });
+
+router.post('/orders/:id/confirm-payment', (req, res) => {
+  const out = ORD.confirmPayment(Number(req.params.id));
+  flash(req, out.error ? 'bad' : 'good', out.error || `ยืนยันการชำระ ${out.order.code} แล้ว ร้านเริ่มเตรียมสินค้าได้ หนังสือเข้าคิวพิมพ์`);
+  res.redirect(back(req, '/admin/orders?tab=slips'));
+});
+router.post('/orders/:id/reject-slip', (req, res) => {
+  const out = ORD.rejectSlip(Number(req.params.id), str(req.body.note, 300));
+  flash(req, out.error ? 'bad' : 'good', out.error || `แจ้งลูกค้าให้ส่งสลิปใหม่แล้ว (${out.order.code})`);
+  res.redirect(back(req, '/admin/orders?tab=slips'));
+});
+
 router.post('/shipments/:id/:move', (req, res) => {
   const move = req.params.move;
-  if (!ORD.MOVES[move]) return res.redirect(back(req, '/admin/orders'));
-  const out = ORD.moveShipment('admin', req.user.id, Number(req.params.id), move, { tracking: str(req.body.tracking, 60), note: str(req.body.note, 300) });
+  // Refund and report only happen through claims; receive is the buyer's.
+  if (!ORD.MOVES[move] || ['refund', 'report', 'receive'].includes(move)) return res.redirect(back(req, '/admin/orders'));
+  const out = ORD.moveShipment('admin', req.user.id, Number(req.params.id), move, { tracking: str(req.body.tracking, 60), carrier: str(req.body.carrier, 40), note: str(req.body.note, 300) });
   flash(req, out.error ? 'bad' : 'good', out.error || {
     start: 'ส่งเข้าคิวพิมพ์แล้ว', ship: 'บันทึกเลขพัสดุแล้ว', deliver: 'ยืนยันส่งถึงและเก็บเงินแล้ว ยอดเข้าบัญชีผู้ขาย',
-    return: 'บันทึกว่าพัสดุตีกลับแล้ว', cancel: 'ยกเลิกพัสดุแล้ว',
+    return: 'บันทึกว่าพัสดุตีกลับแล้ว', release: 'ปล่อยเงินให้ร้านแล้ว',
+    cancel: out.shipment?.method === 'transfer' && out.shipment?.paid_at ? 'ยกเลิกพัสดุแล้ว และตั้งรายการรอคืนเงินให้ลูกค้า' : 'ยกเลิกพัสดุแล้ว',
   }[move]);
   res.redirect(back(req, '/admin/orders'));
+});
+
+/* ---------- claims (problems) & refunds ---------- */
+router.get('/claims', (req, res) => {
+  const disputes = db.prepare(`SELECT d.*, s.items_total, s.ship_fee, s.carrier, s.tracking, s.shipped_at, s.status AS ship_status, o.code,
+      b.display_name AS buyer, u.display_name AS shop
+    FROM disputes d JOIN shipments s ON s.id=d.shipment_id JOIN orders o ON o.id=s.order_id JOIN users b ON b.id=d.buyer_id LEFT JOIN users u ON u.id=s.seller_id
+    ORDER BY d.status='open' DESC, d.created_at DESC LIMIT 100`).all()
+    .map(d => ({ ...d, imgs: JSON.parse(d.images), items: db.prepare('SELECT * FROM order_items WHERE shipment_id=?').all(d.shipment_id).map(i => ({ ...i, lines: JSON.parse(i.options) })) }));
+  const refunds = db.prepare(`SELECT r.*, o.code, b.display_name AS buyer, b.email AS buyer_email, b.phone AS buyer_phone, b.refund_account, a.display_name AS admin_name
+    FROM refunds r JOIN orders o ON o.id=r.order_id JOIN users b ON b.id=r.buyer_id LEFT JOIN users a ON a.id=r.admin_id
+    ORDER BY r.status='pending' DESC, r.created_at DESC LIMIT 200`).all();
+  res.render('admin/claims', { title: 'เคลมและคืนเงิน', portal: 'admin', disputes, refunds });
+});
+router.post('/disputes/:id/decide', (req, res) => {
+  const out = ORD.decideDispute(Number(req.params.id), req.user.id, req.body.decision, { amount: Number(req.body.amount), note: str(req.body.note, 500) });
+  flash(req, out.error ? 'bad' : 'good', out.error || (req.body.decision === 'refund' ? 'ตัดสินให้คืนเงินแล้ว รายการอยู่ในส่วน "รอคืนเงิน"' : 'ปล่อยเงินให้ร้านแล้ว'));
+  res.redirect('/admin/claims');
+});
+router.post('/refunds/:id/paid', (req, res) => {
+  const out = ORD.markRefundPaid(Number(req.params.id), req.user.id, str(req.body.ref, 80));
+  flash(req, out.error ? 'bad' : 'good', out.error || `บันทึกการคืนเงิน ${C.thb(out.refund.amount)} แล้ว`);
+  res.redirect('/admin/claims#refunds');
 });
 
 /* ---------- sellers & handmade applications ---------- */
@@ -202,7 +261,7 @@ router.post('/buyers/:id/cod', (req, res, next) => {
 router.get('/payouts', (req, res) => {
   const history = db.prepare(`SELECT p.*, s.display_name AS seller, a.display_name AS admin_name FROM payouts p
                               JOIN users s ON s.id=p.seller_id JOIN users a ON a.id=p.admin_id ORDER BY p.created_at DESC LIMIT 200`).all();
-  res.render('admin/payouts', { title: 'จ่ายเงินผู้ขาย', portal: 'admin', sellers: sellerRows().filter(s => s.stats.earned > 0 || s.stats.paid > 0), history });
+  res.render('admin/payouts', { title: 'จ่ายเงินผู้ขาย', portal: 'admin', sellers: sellerRows().filter(s => s.stats.earned > 0 || s.stats.paid > 0 || s.stats.pending > 0), history });
 });
 router.post('/payouts', (req, res) => {
   const s = db.prepare("SELECT id,display_name FROM users WHERE id=? AND role='seller'").get(req.body.seller_id);
@@ -233,6 +292,11 @@ router.post('/settings', (req, res) => {
   setSetting('hm_fee_pct', n(req.body.hm_fee_pct, 0, 50));
   setSetting('cod_limit', n(req.body.cod_limit, 0, 1000000));
   setSetting('return_limit', n(req.body.return_limit, 0, 20));
+  setSetting('promptpay', str(req.body.promptpay, 40));
+  setSetting('account_name', str(req.body.account_name, 100));
+  setSetting('release_days', n(req.body.release_days, 1, 60));
+  setSetting('late_alert_days', n(req.body.late_alert_days, 0, 30));
+  setSetting('auto_cancel_days', n(req.body.auto_cancel_days, 1, 60));
   flash(req, 'good', 'บันทึกการตั้งค่าแล้ว');
   res.redirect('/admin/settings');
 });

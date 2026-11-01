@@ -51,16 +51,16 @@
     </div>
 
     <div class="stack">
-      <fieldset><legend>ราคา การผลิต และการส่ง</legend>
+      <fieldset><legend>ราคา สต็อก และการเตรียมสินค้า</legend>
         <div class="fgrid">
           <label class="f" for="price"><span>ราคาตั้งต้น (บาท)</span><input id="price" name="price" type="number" min="1" step="1" value="<%= f.price %>"></label>
-          <label class="f" for="ship_fee"><span>ค่าส่งที่เก็บจากผู้ซื้อ</span><input id="ship_fee" name="ship_fee" type="number" min="0" step="1" value="<%= f.ship_fee %>"></label>
+          <label class="f" for="stock"><span>สต็อก (ชิ้น)</span><input id="stock" name="stock" type="number" min="0" value="<%= f.stock ?? '' %>" placeholder="ว่าง = ทำตามสั่ง"></label>
         </div>
         <div class="fgrid">
-          <label class="f" for="lead_days"><span>ใช้เวลาผลิต (วัน ไม่เกิน <%= C.MAX_LEAD_DAYS %>)</span><input id="lead_days" name="lead_days" type="number" min="1" max="<%= C.MAX_LEAD_DAYS %>" value="<%= f.lead_days %>"></label>
+          <label class="f" for="lead_days"><span>ระยะเวลาเตรียมสินค้า (1–<%= C.MAX_LEAD_DAYS %> วัน)</span><input id="lead_days" name="lead_days" type="number" min="1" max="<%= C.MAX_LEAD_DAYS %>" value="<%= f.lead_days %>"></label>
           <label class="f" for="weekly_capacity"><span>รับได้สูงสุด (ชิ้น/สัปดาห์)</span><input id="weekly_capacity" name="weekly_capacity" type="number" min="1" max="500" value="<%= f.weekly_capacity %>"></label>
         </div>
-        <p class="hint">ลูกค้าทุกคนจะได้รับแจ้งว่า<b><%= C.WAIT.text %></b> ระยะผลิตจึงต้องไม่เกิน <%= C.MAX_LEAD_DAYS %> วัน เพื่อให้ส่งถึงทัน</p>
+        <p class="hint">ลูกค้าจะเห็นว่า "เตรียมสินค้า N วัน + ขนส่ง <%= C.TRANSIT.min %>–<%= C.TRANSIT.max %> วัน" นับจากยืนยันการชำระ ถ้ามีของพร้อมส่งให้ใส่สต็อก ระบบจะตัดสต็อกเมื่อลูกค้าชำระแล้วและคืนสต็อกเมื่อยกเลิก · ค่าส่งตั้งที่ <a href="/seller/account#shipping">บัญชี → ค่าส่งของร้าน</a></p>
         <div class="calc" id="earnCalc"></div>
       </fieldset>
 

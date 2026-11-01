@@ -55,7 +55,7 @@
       <div class="product-meta">
         <span class="product-t"><%= p.title %></span>
         <span class="small muted"><%= p.shop %></span>
-        <span class="product-wait">ได้รับใน <%= C.WAIT.min %>–<%= C.WAIT.max %> วัน</span>
+        <span class="product-wait"><%= p.kind === 'handmade' ? `เตรียม ${p.lead_days} วัน + ส่ง ${C.TRANSIT.min}–${C.TRANSIT.max} วัน` : `ได้รับใน ${C.WAIT.min}–${C.WAIT.max} วัน` %></span>
         <span class="product-price num"><%= p.kind === 'handmade' && O.parse(p.options).some(o => (o.values || []).some(v => v.price) || o.price) ? 'เริ่ม ' : '' %><%= C.thb(p.price) %></span>
       </div>
     </a>
@@ -68,8 +68,8 @@
   <h2 id="howto-h">สั่งซื้อง่าย ๆ 3 ขั้น</h2>
   <ol>
     <li><b>เลือกสินค้า ใส่ตะกร้า</b><span>งาน handmade เลือกสี ขนาด หรือใส่ชื่อได้ในหน้าสินค้า</span></li>
-    <li><b>กรอกที่อยู่ กดยืนยัน</b><span>จ่ายเงินสดเมื่อได้รับของ (เก็บเงินปลายทาง)</span></li>
-    <li><b>รอรับที่บ้าน <%= C.WAIT.min %>–<%= C.WAIT.max %> วัน</b><span>ทุกชิ้นผลิตใหม่หลังคุณสั่ง หนังสือเราพิมพ์และส่งให้ งาน handmade ร้านทำแล้วส่งตรงถึงคุณ ติดตามได้ทุกพัสดุ</span></li>
+    <li><b>กรอกที่อยู่ แล้วจ่ายเงิน</b><span>หนังสือเก็บเงินปลายทางได้ งาน handmade โอนพร้อมเพย์แล้วแนบสลิป จ่ายครั้งเดียวแม้สั่งหลายร้าน</span></li>
+    <li><b>รอรับที่บ้าน</b><span>หนังสือเราพิมพ์และส่งให้ใน <%= C.WAIT.min %>–<%= C.WAIT.max %> วัน งาน handmade ร้านเตรียมตามวันที่แจ้งแล้วส่งตรงถึงคุณ ติดตามได้ทุกพัสดุ</span></li>
   </ol>
   <p class="eco-note"><%- include('_leaf') %> ผลิตเฉพาะชิ้นที่มีคนสั่ง ไม่มีสต็อกค้าง ไม่มีของเหลือทิ้ง</p>
 </section>

@@ -11,6 +11,7 @@ const { TH, format: addrText } = require('./lib/address');
 const { loadUser } = require('./lib/auth');
 const SqliteStore = require('./lib/session-store')(session);
 const seed = require('./seed');
+const { startJobs, jobsOnRequest } = require('./lib/jobs');
 
 seed();
 
@@ -72,6 +73,8 @@ app.use((req, res, next) => {
 });
 
 app.use('/', require('./routes/files'));
+// Handmade time rules (auto release / auto cancel) also run when these portals are opened.
+app.use(['/admin', '/seller', '/account'], jobsOnRequest);
 app.use('/account', require('./routes/account'));
 app.use('/seller', require('./routes/seller'));
 app.use('/admin', require('./routes/admin'));
@@ -84,6 +87,7 @@ app.use((err, req, res, next) => {
 });
 
 if (require.main === module) {
+  startJobs();
   app.listen(cfg.PORT, () => {
     console.log(`Inkfold running at http://localhost:${cfg.PORT}`);
     console.log(`  หน้าร้าน   http://localhost:${cfg.PORT}/   (ผู้ซื้อเข้าสู่ระบบที่ /account/login)`);
