@@ -1,0 +1,50 @@
+<%- include('../partials/head') %>
+<% const chosen = form.address_id || (addresses[0] ? String(addresses[0].id) : 'new'); %>
+<section class="stack narrow-col">
+  <h1>ชำระเงิน</h1>
+  <form class="checkout-form" method="post" action="/checkout">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <%- include('../partials/errors') %>
+
+    <fieldset class="cstep">
+      <legend><span class="n">1</span> ส่งถึงที่ไหน</legend>
+      <div class="opts">
+        <% for (const a of addresses) { %>
+        <label class="opt" for="addr<%= a.id %>"><input type="radio" id="addr<%= a.id %>" name="address_id" value="<%= a.id %>" <%- chosen === String(a.id) ? 'checked' : '' %>>
+          <span><b><%= a.name %></b><small><%= a.phone %></small><small><%= addrText(a) %></small></span></label>
+        <% } %>
+        <label class="opt" for="addrNew"><input type="radio" id="addrNew" name="address_id" value="new" <%- chosen === 'new' ? 'checked' : '' %>><span><b>ที่อยู่ใหม่</b><small>กรอกด้านล่าง</small></span></label>
+      </div>
+      <div class="stack" data-new-address>
+        <%- include('../partials/address-fields', { form, required: false, defName: addresses.length ? '' : me.display_name, defPhone: addresses.length ? '' : me.phone }) %>
+        <label class="check" for="save_address"><input type="checkbox" id="save_address" name="save_address" value="1" checked> บันทึกที่อยู่นี้ไว้ใช้ครั้งหน้า</label>
+      </div>
+    </fieldset>
+
+    <div class="cstep">
+      <h3><span class="n">2</span> ตรวจสินค้า (<%= plan.shipments.length %> พัสดุ)</h3>
+      <% for (const g of plan.shipments) { %>
+      <div class="stack-sm">
+        <b class="small"><%= g.fulfilled_by === 'platform' ? 'ส่งโดย Inkfold' : 'ส่งโดยร้าน ' + g.shop %></b>
+        <% for (const r of g.rows) { %>
+        <div class="row between small"><span><%= r.product.title %> × <%= r.qty %><%- include('../partials/lines', { lines: r.lines }) %></span><span class="num"><%= C.thb(r.unit * r.qty) %></span></div>
+        <% } %>
+      </div>
+      <% } %>
+    </div>
+
+    <div class="cstep">
+      <h3><span class="n">3</span> จ่ายเงิน</h3>
+      <div class="opt" style="cursor:default"><input type="radio" checked disabled aria-label="เก็บเงินปลายทาง"><span><b>เก็บเงินปลายทาง (COD)</b><small>จ่ายเงินสดให้พนักงานส่งของเมื่อได้รับแต่ละพัสดุ</small></span></div>
+      <div class="calc">
+        <div class="ln"><span>ราคาสินค้า</span><span class="num"><%= C.thb(plan.items_total) %></span></div>
+        <div class="ln"><span>ค่าส่ง (<%= plan.shipments.length %> พัสดุ)</span><span class="num"><%= C.thb(plan.ship_total) %></span></div>
+        <div class="ln tot"><span>ยอดชำระปลายทาง</span><b class="num"><%= C.thb(plan.total) %></b></div>
+      </div>
+      <label class="check wait-ack" for="ack_wait"><input type="checkbox" id="ack_wait" name="ack_wait" value="1" required <%- form.ack_wait ? 'checked' : '' %>> <span>รับทราบว่าสินค้าทุกชิ้นผลิตหลังสั่ง ต้อง<b><%= C.WAIT.text %></b> (คาดว่าได้รับ <%= C.day(C.waitRange(Date.now())[0]) %> – <%= C.day(C.waitRange(Date.now())[1]) %>)</span></label>
+      <button class="btn primary big block">ยืนยันคำสั่งซื้อ</button>
+      <p class="hint center">ยกเลิกเองได้ก่อนร้านเริ่มผลิต · ถ้าปฏิเสธรับพัสดุหลายครั้ง ระบบจะปิดสิทธิ์เก็บเงินปลายทาง</p>
+    </div>
+  </form>
+</section>
+<%- include('../partials/foot', { scripts: ['checkout', 'address'] }) %>

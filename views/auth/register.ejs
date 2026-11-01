@@ -1,0 +1,41 @@
+<%- include('../partials/head') %>
+<section class="auth panel">
+  <div class="stack-sm">
+    <span class="eyebrow"><%= { buyer: 'บัญชีผู้ซื้อ', seller: 'สตูดิโอผู้ขาย', admin: 'ระบบหลังร้าน' }[role] %></span>
+    <h1><%= title %></h1>
+    <% if (role === 'seller') { %>
+    <p class="muted">ลงขายได้ 2 แบบ: <b>หนังสือพิมพ์ตามสั่ง</b> ส่งไฟล์ PDF แล้วเราพิมพ์และส่งให้ คุณได้ <%= C.ROYALTY * 100 %>% ของราคาหลังหักค่าพิมพ์ · <b>งาน handmade</b> คุณทำและส่งเอง (ต้องยื่นใบสมัคร handmade หลังสมัครสมาชิก)</p>
+    <% } else if (role === 'buyer') { %>
+    <p class="muted">สมัครครั้งเดียว สั่งซื้อแบบเก็บเงินปลายทาง และติดตามพัสดุได้ทุกชิ้น</p>
+    <% } else { %>
+    <p class="muted">บัญชีแอดมินต้องใช้รหัสเชิญจากผู้ดูแลระบบ</p>
+    <% } %>
+  </div>
+  <% if (!open) { %>
+    <div class="flash warn">ระบบปิดรับสมัครแอดมินอยู่ ผู้ดูแลต้องตั้งค่า <code>ADMIN_INVITE_CODE</code> ในไฟล์ .env ก่อน</div>
+  <% } else { %>
+  <%- include('../partials/errors') %>
+  <form class="form" method="post" action="<%= base %>/register">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <input type="hidden" name="next" value="<%= typeof next !== 'undefined' ? next : '' %>">
+    <label class="f" for="display_name"><span><%= { buyer: 'ชื่อ-นามสกุล', seller: 'นามปากกา / ชื่อร้าน', admin: 'ชื่อผู้ดูแล' }[role] %></span>
+      <input id="display_name" name="display_name" required minlength="2" maxlength="60" autocomplete="<%= role === 'buyer' ? 'name' : 'off' %>" value="<%= form.display_name || '' %>" <%- role === 'seller' ? 'placeholder="ชื่อนี้จะแสดงบนหน้าร้าน"' : '' %>></label>
+    <label class="f" for="email"><span>อีเมล</span><input id="email" name="email" type="email" autocomplete="email" required value="<%= form.email || '' %>"></label>
+    <% if (role !== 'admin') { %>
+    <label class="f" for="phone"><span>เบอร์โทร</span><input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" <%= role === 'buyer' ? 'required' : '' %> value="<%= form.phone || '' %>"></label>
+    <% } %>
+    <div class="fgrid">
+      <label class="f" for="password"><span>รหัสผ่าน (8 ตัวขึ้นไป)</span><input id="password" name="password" type="password" autocomplete="new-password" minlength="8" required></label>
+      <label class="f" for="confirm"><span>ยืนยันรหัสผ่าน</span><input id="confirm" name="confirm" type="password" autocomplete="new-password" minlength="8" required></label>
+    </div>
+    <% if (role === 'admin') { %>
+    <label class="f" for="invite"><span>รหัสเชิญแอดมิน</span><input id="invite" name="invite" type="password" autocomplete="off" required></label>
+    <% } else if (role === 'seller') { %>
+    <label class="check" for="accept"><input type="checkbox" id="accept" name="accept" value="1" required> ฉันยอมรับว่าสินค้าที่ลงขายต้องเป็นงานของฉันหรือได้รับอนุญาตเชิงพาณิชย์ ผ่านมาตรฐานความปลอดภัยที่ร้านกำหนด และร้านมีสิทธิ์ไม่อนุมัติหรือระงับการขาย</label>
+    <% } %>
+    <button class="btn primary block">สมัครสมาชิก</button>
+  </form>
+  <% } %>
+  <p class="small muted center">มีบัญชีแล้ว? <a href="<%= base %>/login">เข้าสู่ระบบ</a></p>
+</section>
+<%- include('../partials/foot') %>

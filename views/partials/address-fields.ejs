@@ -1,0 +1,31 @@
+<%
+  // Address fields shared by checkout and the account page. Province → district → sub-district → postcode.
+  // Works without JS as plain selects (after a validation error the server re-fills the lists);
+  // public/js/address.js adds province search and fills the lower lists as you go.
+  const v = k => (form && form[k]) || '';
+  const req = typeof required !== 'undefined' && required;
+  const [dl, sl] = TH.labels(v('a_province'));
+  const opts = (list, cur) => list.map(x => `<option${x === cur ? ' selected' : ''}>${x.replace(/[&<>"]/g, c => `&#${c.charCodeAt(0)};`)}</option>`).join('');
+%>
+<div class="stack addr-fields" data-address>
+  <div class="fgrid">
+    <label class="f" for="a_name"><span>ชื่อผู้รับ</span><input id="a_name" name="a_name" autocomplete="name" <%= req ? 'required' : '' %> value="<%= v('a_name') || (typeof defName !== 'undefined' ? defName : '') %>"></label>
+    <label class="f" for="a_phone"><span>เบอร์โทร</span><input id="a_phone" name="a_phone" type="tel" inputmode="tel" autocomplete="tel" <%= req ? 'required' : '' %> value="<%= v('a_phone') || (typeof defPhone !== 'undefined' ? defPhone : '') %>"></label>
+  </div>
+  <div class="f">
+    <label for="a_province">จังหวัด</label>
+    <select id="a_province" name="a_province" data-level="province" <%= req ? 'required' : '' %>><option value="">เลือกจังหวัด (77 จังหวัด)</option><%- opts(TH.provinces(), v('a_province')) %></select>
+  </div>
+  <div class="fgrid">
+    <label class="f" for="a_district"><span data-label="district"><%= dl %></span>
+      <select id="a_district" name="a_district" data-level="district" <%= req ? 'required' : '' %> <%= v('a_province') ? '' : 'disabled' %>><option value="">เลือก<%= dl %></option><%- opts(TH.districts(v('a_province')), v('a_district')) %></select>
+    </label>
+    <label class="f" for="a_subdistrict"><span data-label="subdistrict"><%= sl %></span>
+      <select id="a_subdistrict" name="a_subdistrict" data-level="subdistrict" <%= req ? 'required' : '' %> <%= v('a_district') ? '' : 'disabled' %>><option value="">เลือก<%= sl %></option><%- opts(TH.subdistricts(v('a_province'), v('a_district')), v('a_subdistrict')) %></select>
+    </label>
+  </div>
+  <div class="fgrid">
+    <label class="f" for="a_postcode"><span>รหัสไปรษณีย์</span><input id="a_postcode" name="a_postcode" inputmode="numeric" maxlength="5" autocomplete="postal-code" data-level="postcode" <%= req ? 'required' : '' %> value="<%= v('a_postcode') %>" placeholder="เติมให้อัตโนมัติ"></label>
+  </div>
+  <label class="f" for="a_line"><span>บ้านเลขที่ ถนน หมู่บ้าน</span><textarea id="a_line" name="a_line" autocomplete="address-line1" <%= req ? 'required' : '' %> placeholder="เช่น 99/1 หมู่ 3 ถ.สุขุมวิท"><%= v('a_line') %></textarea></label>
+</div>

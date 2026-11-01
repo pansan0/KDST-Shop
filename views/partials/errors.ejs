@@ -1,0 +1,3 @@
+<% if (typeof errors !== 'undefined' && errors && errors.length) { %>
+<div class="flash bad" role="alert"><b>แก้ไขข้อมูลก่อนส่ง</b><ul><% for (const e of errors) { %><li><%= e %></li><% } %></ul></div>
+<% } %>

@@ -1,0 +1,68 @@
+<%- include('../partials/head') %>
+<% const hmOk = seller.handmade_status === 'approved'; %>
+<section class="stack">
+  <div class="row between">
+    <div><span class="eyebrow">สตูดิโอผู้ขาย</span><h1><%= user.display_name %></h1></div>
+    <div class="row">
+      <a class="btn primary" href="/seller/products/new?kind=kdp">+ หนังสือ (KDP)</a>
+      <a class="btn <%= hmOk ? 'primary' : '' %>" href="<%= hmOk ? '/seller/products/new?kind=handmade' : '/seller/handmade/apply' %>">+ งาน handmade</a>
+    </div>
+  </div>
+
+  <% if (seller.handmade_status === 'applied') { %><div class="flash warn">ใบสมัครขายงาน handmade อยู่ระหว่างพิจารณา</div>
+  <% } else if (seller.handmade_status === 'rejected') { %><div class="flash bad">ใบสมัคร handmade ไม่ผ่าน <a href="/seller/handmade/apply">ดูเหตุผล</a></div>
+  <% } else if (seller.handmade_status === 'none') { %><div class="flash">อยากขายงานทำมือ เช่น เครื่องประดับ หรือของตกแต่ง? <a href="/seller/handmade/apply">ยื่นใบสมัคร handmade</a></div><% } %>
+
+  <div class="kpis">
+    <div class="kpi"><b><%= products.filter(p => p.status === 'approved').length %></b><span>สินค้าที่วางขาย</span></div>
+    <div class="kpi"><b><%= products.filter(p => p.status === 'pending').length %></b><span>รอแอดมินตรวจ</span></div>
+    <a class="kpi link <%= badges.orders ? 'alert' : '' %>" href="/seller/orders"><b><%= badges.orders %></b><span>พัสดุ handmade ที่ต้องทำ</span></a>
+    <div class="kpi"><b><%= C.thb(stats.balance) %></b><span>รอโอนให้คุณ · <a href="/seller/sales">ดูรายละเอียด</a></span></div>
+  </div>
+  <% if (hmOk && metrics.total) { %>
+  <div class="kpis">
+    <div class="kpi <%= metrics.late > 4 ? 'alert' : '' %>"><b><%= metrics.late %>%</b><span>ส่งช้ากว่ากำหนด (ควรต่ำกว่า 4%)</span></div>
+    <div class="kpi <%= metrics.cancelled > 2.5 ? 'alert' : '' %>"><b><%= metrics.cancelled %>%</b><span>ร้านยกเลิกเอง (ควรต่ำกว่า 2.5%)</span></div>
+    <div class="kpi"><b><%= metrics.returned %>%</b><span>พัสดุตีกลับ</span></div>
+  </div>
+  <% } %>
+
+  <div class="panel">
+    <div class="row between head-row"><h2>สินค้าของฉัน</h2><span class="small muted">แก้ไขสินค้าที่วางขายแล้ว ต้องผ่านการตรวจใหม่ก่อนกลับขึ้นหน้าร้าน</span></div>
+    <% if (!products.length) { %>
+      <div class="empty">
+        <p>ยังไม่มีสินค้า เริ่มจากหนังสือ (เตรียมปก JPG/PNG และเนื้อใน PDF) หรือยื่นใบสมัครขายงาน handmade</p>
+        <a class="btn primary" href="/seller/products/new?kind=kdp">ลงขายหนังสือเล่มแรก</a>
+      </div>
+    <% } else { %>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>สินค้า</th><th>สถานะ</th><th class="r">ราคา</th><th class="r">ได้ต่อชิ้น</th><th class="r">ขายแล้ว</th><th></th></tr></thead>
+      <tbody>
+      <% for (const p of products) { const [st, cls] = C.PRODUCT_STATUS[p.status]; const r = p.review; %>
+        <tr>
+          <td><div class="bookcell"><img class="thumb" src="/files/cover/<%= p.id %>" alt=""><div>
+            <b><%= p.title %></b>
+            <div class="small muted"><%= p.kind === 'kdp' ? 'หนังสือ · ' + p.pages + ' หน้า · ' + C.TRIMS[p.trim] : 'Handmade · ' + C.HM_CATS[p.category] + ' · ผลิต ' + p.lead_days + ' วัน' %></div>
+            <% if (r && r.note && ['changes', 'rejected', 'suspended'].includes(p.status)) { %>
+              <div class="flash <%= p.status === 'changes' ? 'warn' : 'bad' %> tight">แอดมิน: <%= r.note %></div>
+            <% } %>
+          </div></div></td>
+          <td><%- pill(st, cls) %></td>
+          <td class="num r"><%= C.thb(p.price) %></td>
+          <td class="num r"><%= C.thb(p.kind === 'kdp' ? C.royaltyUnit(p) : C.handmadeEarn(p.price, fee)) %></td>
+          <td class="num r"><%= p.sold %></td>
+          <td><div class="row actions">
+            <% if (p.status !== 'suspended') { %><a class="btn sm" href="/seller/products/<%= p.id %>/edit"><%= p.status === 'draft' ? 'แก้ไขร่าง' : ['changes', 'rejected'].includes(p.status) ? 'แก้ไขแล้วส่งใหม่' : 'แก้ไข' %></a><% } %>
+            <% if (p.status === 'approved') { %><form method="post" action="/seller/products/<%= p.id %>/archive"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn sm">ปิดการขาย</button></form><% } %>
+            <% if (p.status === 'archived') { %><form method="post" action="/seller/products/<%= p.id %>/unarchive"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn sm">เปิดขายอีกครั้ง</button></form><% } %>
+            <% if (p.status === 'approved') { %><a class="btn sm" href="/item/<%= p.id %>" target="_blank" rel="noopener">ดูหน้าร้าน</a><% } %>
+            <% if (p.status === 'draft') { %><form method="post" action="/seller/products/<%= p.id %>/delete" data-confirm="ลบร่าง “<%= p.title %>” ถาวร?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn sm bad">ลบ</button></form><% } %>
+          </div></td>
+        </tr>
+      <% } %>
+      </tbody>
+    </table></div>
+    <% } %>
+  </div>
+</section>
+<%- include('../partials/foot') %>

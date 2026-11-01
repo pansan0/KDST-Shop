@@ -1,0 +1,37 @@
+<%- include('../partials/head') %>
+<section class="stack">
+  <div><h1>จ่ายเงินผู้ขาย</h1><p class="muted lead">ระบบยังไม่เชื่อมธนาคาร โอนผ่านแอปธนาคารตามปกติ แล้วบันทึกยอดและเลขอ้างอิงที่นี่ ผู้ขายจะเห็นในหน้ายอดขายทันที</p></div>
+  <div class="panel">
+    <% if (!sellers.length) { %><div class="empty">ยังไม่มียอดค้างจ่าย</div><% } else { %>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>ผู้ขาย</th><th>บัญชีรับเงิน</th><th class="r">รายได้ผู้ขาย</th><th class="r">โอนแล้ว</th><th class="r">ค้างจ่าย</th><th>บันทึกการโอน</th></tr></thead>
+      <tbody><% for (const s of sellers) { %>
+        <tr>
+          <td><b><%= s.display_name %></b><div class="small muted"><%= s.email %></div></td>
+          <td class="small"><% if (s.payout_account) { %><span class="num"><%= s.payout_account %></span> <%= s.payout_bank %><br><%= s.payout_name %><% } else { %><span class="muted">ยังไม่กรอก</span><% } %></td>
+          <td class="num r"><%= C.thb(s.stats.earned) %></td>
+          <td class="num r"><%= C.thb(s.stats.paid) %></td>
+          <td class="num r"><b><%= C.thb(s.stats.balance) %></b></td>
+          <td><% if (s.stats.balance > 0) { %>
+            <form class="inline" method="post" action="/admin/payouts" data-confirm="บันทึกว่าโอนเงินให้ <%= s.display_name %> แล้ว?">
+              <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="seller_id" value="<%= s.id %>">
+              <input name="amount" type="number" step="0.01" min="0.01" max="<%= s.stats.balance %>" value="<%= s.stats.balance %>" aria-label="ยอดที่โอน" class="w-amt">
+              <input name="ref" placeholder="เลขอ้างอิง" aria-label="เลขอ้างอิง">
+              <input name="note" placeholder="หมายเหตุ เช่น รอบ ต.ค." aria-label="หมายเหตุ">
+              <button class="btn sm primary">บันทึก</button>
+            </form>
+          <% } else { %><span class="small muted">ไม่มียอดค้าง</span><% } %></td>
+        </tr>
+      <% } %></tbody>
+    </table></div>
+    <% } %>
+  </div>
+  <div class="panel">
+    <h2>ประวัติการโอน</h2>
+    <% if (!history.length) { %><div class="empty">ยังไม่มีการบันทึก</div><% } else { %>
+    <div class="tbl-wrap"><table><thead><tr><th>วันที่</th><th>ผู้ขาย</th><th class="r">ยอด</th><th>อ้างอิง</th><th>บันทึกโดย</th></tr></thead>
+      <tbody><% for (const p of history) { %><tr><td class="small"><%= C.dt(p.created_at) %></td><td><%= p.seller %></td><td class="num r"><%= C.thb(p.amount) %></td><td class="small"><%= p.ref %> <span class="muted"><%= p.note %></span></td><td class="small muted"><%= p.admin_name %></td></tr><% } %></tbody></table></div>
+    <% } %>
+  </div>
+</section>
+<%- include('../partials/foot') %>

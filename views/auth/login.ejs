@@ -1,0 +1,29 @@
+<%- include('../partials/head') %>
+<% const T = {
+  buyer: ['บัญชีผู้ซื้อ', 'เข้าสู่ระบบเพื่อสั่งซื้อและติดตามพัสดุ', 'สมัครสมาชิก'],
+  seller: ['สตูดิโอผู้ขาย', 'ลงขายหนังสือหรืองาน handmade ติดตามผลการตรวจ และดูยอดขาย', 'สมัครเป็นผู้ขาย'],
+  admin: ['ระบบหลังร้าน', 'สำหรับทีมงานที่ตรวจสินค้าและจัดการคำสั่งซื้อ', 'สมัครแอดมินด้วยรหัสเชิญ'],
+}[role]; %>
+<section class="auth panel">
+  <div class="stack-sm">
+    <span class="eyebrow"><%= T[0] %></span>
+    <h1><%= title %></h1>
+    <p class="muted"><%= T[1] %></p>
+  </div>
+  <%- include('../partials/errors') %>
+  <form class="form" method="post" action="<%= base %>/login">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <input type="hidden" name="next" value="<%= next %>">
+    <label class="f" for="email"><span>อีเมล</span><input id="email" name="email" type="email" autocomplete="username" required value="<%= form.email || '' %>"></label>
+    <label class="f" for="password"><span>รหัสผ่าน</span><input id="password" name="password" type="password" autocomplete="current-password" required></label>
+    <button class="btn primary block">เข้าสู่ระบบ</button>
+  </form>
+  <p class="small muted center">ยังไม่มีบัญชี? <a href="<%= base %>/register<%= next ? '?next=' + encodeURIComponent(next) : '' %>"><%= T[2] %></a></p>
+  <p class="small center">
+    <% if (role !== 'buyer') { %><a href="/account/login" class="muted">เข้าสู่ระบบผู้ซื้อ</a> · <% } %>
+    <% if (role !== 'seller') { %><a href="/seller/login" class="muted">เข้าสู่ระบบผู้ขาย</a> · <% } %>
+    <% if (role !== 'admin') { %><a href="/admin/login" class="muted">แอดมิน</a> · <% } %>
+    <a href="/" class="muted">กลับหน้าร้าน</a>
+  </p>
+</section>
+<%- include('../partials/foot') %>

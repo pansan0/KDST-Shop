@@ -1,0 +1,109 @@
+<%- include('../partials/head') %>
+<%
+  const f = form;
+  const opt = (map, cur) => Object.entries(map).map(([k, t]) => `<option value="${k}"${k === cur ? ' selected' : ''}>${t}</option>`).join('');
+  const isDraft = !product || product.status === 'draft';
+  const on = v => v && v !== '0';
+%>
+<p class="small"><a href="/seller" class="muted">← สินค้าของฉัน</a></p>
+<form class="stack" id="hmForm" method="post" enctype="multipart/form-data"
+      action="<%= product ? '/seller/products/' + product.id + '?' : '/seller/products?kind=handmade&' %>_csrf=<%= csrf %>" data-fee="<%= fee %>">
+  <div>
+    <span class="eyebrow">งาน Handmade · คุณทำและส่งเอง</span>
+    <h1><%= product ? 'แก้ไขสินค้า' : 'ลงขายสินค้า handmade' %></h1>
+    <% if (product) { const [st, cls] = C.PRODUCT_STATUS[product.status]; %><div class="row small">สถานะปัจจุบัน <%- pill(st, cls) %><% if (product.rev) { %><span class="muted">ส่งตรวจแล้ว <%= product.rev %> ครั้ง</span><% } %></div><% } %>
+  </div>
+  <%- include('../partials/errors') %>
+  <% if (review && review.note && ['changes', 'rejected'].includes(product.status)) { %>
+    <div class="flash <%= product.status === 'changes' ? 'warn' : 'bad' %>"><b>ข้อความจากแอดมิน</b> <%= review.note %></div>
+  <% } %>
+  <% if (product && product.status === 'approved') { %><div class="flash warn">สินค้านี้วางขายอยู่ เมื่อส่งตรวจใหม่จะถูกซ่อนจากหน้าร้านจนกว่าแอดมินอนุมัติ</div><% } %>
+
+  <div class="two">
+    <div class="stack">
+      <fieldset><legend>รายละเอียด</legend>
+        <label class="f" for="title"><span>ชื่อสินค้า</span><input id="title" name="title" maxlength="120" required value="<%= f.title || '' %>" placeholder="เช่น กำไลลูกปัดสลักชื่อ"></label>
+        <label class="f" for="subtitle"><span>คำโปรยสั้น</span><input id="subtitle" name="subtitle" maxlength="160" value="<%= f.subtitle || '' %>" placeholder="เช่น เลือกขนาด สี และตัวอักษรได้เอง"></label>
+        <label class="f" for="description"><span>คำอธิบาย (บอกตามจริง ไม่อ้างสรรพคุณเกินจริง)</span><textarea id="description" name="description" maxlength="3000"><%= f.description || '' %></textarea></label>
+        <div class="fgrid">
+          <label class="f" for="category"><span>หมวด</span><select id="category" name="category"><%- opt(C.HM_CATS, f.category) %></select></label>
+          <label class="f" for="keywords"><span>คำค้น (คั่นด้วยจุลภาค)</span><input id="keywords" name="keywords" maxlength="300" value="<%= f.keywords || '' %>"></label>
+        </div>
+        <label class="f" for="materials"><span>วัสดุ (บังคับ ระบุให้ครบ)</span><input id="materials" name="materials" maxlength="300" value="<%= f.materials || '' %>" placeholder="เช่น ลูกปัดแก้ว, เชือกยางยืด, ลูกปัดอักษรอะคริลิก"></label>
+        <div class="fgrid">
+          <label class="f" for="made_by"><span>ใครทำ</span><select id="made_by" name="made_by"><%- opt(C.MADE_BY, f.made_by) %></select></label>
+          <label class="f" for="method"><span>วิธีทำ</span><select id="method" name="method"><%- opt(C.METHOD, f.method) %></select></label>
+        </div>
+      </fieldset>
+      <fieldset><legend>รูปสินค้า</legend>
+        <label class="f" for="cover"><span>รูปหลัก JPG/PNG <% if (product && product.cover_file) { %><em class="ok">· มีไฟล์แล้ว</em><% } %></span><input id="cover" name="cover" type="file" accept="image/png,image/jpeg"></label>
+        <label class="f" for="previews"><span>รูปเพิ่มเติม สูงสุด 7 รูป <% if (product && JSON.parse(product.preview_files).length) { %><em class="ok">· มี <%= JSON.parse(product.preview_files).length %> รูป (อัปโหลดใหม่จะแทนที่)</em><% } %></span><input id="previews" name="previews" type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
+        <ul class="hint list">
+          <li>รูปหลัก: พื้นขาว สินค้าเต็มกรอบราว 85% ด้านยาวอย่างน้อย 1000 px ไม่มีลายน้ำหรือข้อความทับ</li>
+          <li>รูปเพิ่มเติม: ถ่ายตอนใส่จริง ขนาดเทียบมือ ตัวเลือกสีต่าง ๆ</li>
+        </ul>
+      </fieldset>
+      <fieldset><legend>ความปลอดภัย</legend>
+        <label class="check" for="metal"><input type="checkbox" id="metal" name="metal" value="1" <%- on(f.metal) ? 'checked' : '' %> data-toggle="declare_metal_box"> มีชิ้นส่วนโลหะที่สัมผัสผิวนาน (ตะขอ ต่างหู ห่วง)</label>
+        <label class="check" for="small_parts"><input type="checkbox" id="small_parts" name="small_parts" value="1" <%- on(f.small_parts) ? 'checked' : '' %> data-toggle="declare_kids_box"> มีชิ้นส่วนเล็กที่หลุดได้ (ลูกปัด กระดุม)</label>
+        <label class="check" for="for_kids"><input type="checkbox" id="for_kids" name="for_kids" value="1" <%- on(f.for_kids) ? 'checked' : '' %> data-toggle="declare_kids_box"> ทำมาสำหรับเด็ก (อายุต่ำกว่า 12 ปี)</label>
+      </fieldset>
+    </div>
+
+    <div class="stack">
+      <fieldset><legend>ราคา การผลิต และการส่ง</legend>
+        <div class="fgrid">
+          <label class="f" for="price"><span>ราคาตั้งต้น (บาท)</span><input id="price" name="price" type="number" min="1" step="1" value="<%= f.price %>"></label>
+          <label class="f" for="ship_fee"><span>ค่าส่งที่เก็บจากผู้ซื้อ</span><input id="ship_fee" name="ship_fee" type="number" min="0" step="1" value="<%= f.ship_fee %>"></label>
+        </div>
+        <div class="fgrid">
+          <label class="f" for="lead_days"><span>ใช้เวลาผลิต (วัน ไม่เกิน <%= C.MAX_LEAD_DAYS %>)</span><input id="lead_days" name="lead_days" type="number" min="1" max="<%= C.MAX_LEAD_DAYS %>" value="<%= f.lead_days %>"></label>
+          <label class="f" for="weekly_capacity"><span>รับได้สูงสุด (ชิ้น/สัปดาห์)</span><input id="weekly_capacity" name="weekly_capacity" type="number" min="1" max="500" value="<%= f.weekly_capacity %>"></label>
+        </div>
+        <p class="hint">ลูกค้าทุกคนจะได้รับแจ้งว่า<b><%= C.WAIT.text %></b> ระยะผลิตจึงต้องไม่เกิน <%= C.MAX_LEAD_DAYS %> วัน เพื่อให้ส่งถึงทัน</p>
+        <div class="calc" id="earnCalc"></div>
+      </fieldset>
+
+      <fieldset><legend>ตัวเลือกคัสตอม (ไม่บังคับ สูงสุด <%= O.MAX_OPTIONS %> ข้อ)</legend>
+        <p class="hint">ค่าแต่ละบรรทัด: <code>ชื่อ | +ราคาเพิ่ม | #สี</code> เช่น <code>ชมพูพาสเทล | +0 | #f6b8c8</code> (ราคาและสีไม่ใส่ก็ได้)</p>
+        <% for (let i = 0; i < O.MAX_OPTIONS; i++) { const t = f['opt_type_' + i] || ''; %>
+        <details class="optdef" <%= t ? 'open' : '' %> data-opt="<%= i %>">
+          <summary><b>ตัวเลือก <%= i + 1 %></b> <span class="muted small"><%= f['opt_label_' + i] || 'ยังไม่ได้ตั้ง' %></span></summary>
+          <div class="stack">
+            <div class="fgrid">
+              <label class="f" for="opt_type_<%= i %>"><span>ชนิด</span><select id="opt_type_<%= i %>" name="opt_type_<%= i %>" data-type><option value="">— ไม่ใช้ —</option><%- opt(C.OPTION_TYPES, t) %></select></label>
+              <label class="f" for="opt_label_<%= i %>"><span>ชื่อที่ผู้ซื้อเห็น</span><input id="opt_label_<%= i %>" name="opt_label_<%= i %>" maxlength="40" value="<%= f['opt_label_' + i] || '' %>" placeholder="เช่น ขนาดข้อมือ"></label>
+            </div>
+            <label class="check" for="opt_req_<%= i %>"><input type="checkbox" id="opt_req_<%= i %>" name="opt_req_<%= i %>" value="1" <%- on(f['opt_req_' + i]) ? 'checked' : '' %>> ผู้ซื้อต้องเลือก</label>
+            <label class="f" for="opt_values_<%= i %>" data-for="select swatch"><span>ค่าให้เลือก (บรรทัดละ 1 ค่า)</span><textarea id="opt_values_<%= i %>" name="opt_values_<%= i %>" placeholder="S 15 ซม.&#10;M 16.5 ซม.&#10;L 18 ซม. | +10"><%= f['opt_values_' + i] || '' %></textarea></label>
+            <div class="fgrid" data-for="text">
+              <label class="f" for="opt_maxlen_<%= i %>"><span>ยาวสูงสุด (ตัว)</span><input id="opt_maxlen_<%= i %>" name="opt_maxlen_<%= i %>" type="number" min="1" max="40" value="<%= f['opt_maxlen_' + i] || 8 %>"></label>
+              <label class="f" for="opt_charset_<%= i %>"><span>ตัวอักษรที่รับ</span><select id="opt_charset_<%= i %>" name="opt_charset_<%= i %>"><option value="upper" <%= f['opt_charset_' + i] === 'any' ? '' : 'selected' %>>A–Z, 0–9, ♥ (ลูกปัดอักษร)</option><option value="any" <%= f['opt_charset_' + i] === 'any' ? 'selected' : '' %>>ข้อความทั่วไป (ไทยได้)</option></select></label>
+              <label class="f" for="opt_price_<%= i %>"><span>ราคาเพิ่มเมื่อใส่ข้อความ</span><input id="opt_price_<%= i %>" name="opt_price_<%= i %>" type="number" min="0" value="<%= f['opt_price_' + i] || 0 %>"></label>
+            </div>
+            <div class="fgrid" data-for="range">
+              <label class="f" for="opt_min_<%= i %>"><span>ต่ำสุด</span><input id="opt_min_<%= i %>" name="opt_min_<%= i %>" type="number" step="any" value="<%= f['opt_min_' + i] ?? '' %>"></label>
+              <label class="f" for="opt_max_<%= i %>"><span>สูงสุด</span><input id="opt_max_<%= i %>" name="opt_max_<%= i %>" type="number" step="any" value="<%= f['opt_max_' + i] ?? '' %>"></label>
+              <label class="f" for="opt_step_<%= i %>"><span>ทีละ</span><input id="opt_step_<%= i %>" name="opt_step_<%= i %>" type="number" step="any" value="<%= f['opt_step_' + i] || 0.5 %>"></label>
+              <label class="f" for="opt_unit_<%= i %>"><span>หน่วย</span><input id="opt_unit_<%= i %>" name="opt_unit_<%= i %>" maxlength="10" value="<%= f['opt_unit_' + i] || 'ซม.' %>"></label>
+            </div>
+          </div>
+        </details>
+        <% } %>
+      </fieldset>
+
+      <fieldset><legend>คำยืนยันก่อนส่งตรวจ</legend>
+        <label class="check" for="declare_handmade"><input type="checkbox" id="declare_handmade" name="declare_handmade" value="1" <%- on(f.declare_handmade) ? 'checked' : '' %>> ฉันทำ ประกอบ หรือดัดแปลงสินค้านี้ด้วยมือเอง ไม่ได้ซื้อสำเร็จรูปมาขายต่อ</label>
+        <label class="check" for="declare_metal" id="declare_metal_box"><input type="checkbox" id="declare_metal" name="declare_metal" value="1" <%- on(f.declare_metal) ? 'checked' : '' %>> ชิ้นส่วนโลหะปล่อยนิกเกิลไม่เกิน 0.5 µg/cm²/สัปดาห์ มีตะกั่วต่ำกว่า 0.05% และแคดเมียมต่ำกว่า 0.01% (เกณฑ์ EU REACH) และคำอ้างโลหะมีค่าเป็นจริง</label>
+        <label class="check" for="declare_kids" id="declare_kids_box"><input type="checkbox" id="declare_kids" name="declare_kids" value="1" <%- on(f.declare_kids) ? 'checked' : '' %>> วัสดุมีตะกั่วไม่เกิน 100 ppm และฉันยอมให้ร้านติดคำเตือน "มีชิ้นส่วนเล็ก ไม่เหมาะกับเด็กต่ำกว่า 3 ปี"</label>
+        <label class="check" for="rights"><input type="checkbox" id="rights" name="rights" value="1" <%- on(f.rights) ? 'checked' : '' %>> รูปและลวดลายเป็นของฉัน ไม่มีตัวละคร โลโก้ หรือเครื่องหมายการค้าของผู้อื่น และไม่ใช้วัสดุต้องห้าม (งาช้าง กระดองเต่า ปะการัง ฯลฯ)</label>
+      </fieldset>
+    </div>
+  </div>
+  <div class="row sticky-actions">
+    <button class="btn primary" name="action" value="submit">ส่งให้แอดมินตรวจ</button>
+    <% if (isDraft) { %><button class="btn" name="action" value="draft" formnovalidate>บันทึกร่าง</button><% } %>
+    <span class="hint">แอดมินตรวจตามเช็กลิสต์มาตรฐานก่อนวางขาย</span>
+  </div>
+</form>
+<%- include('../partials/foot', { scripts: ['handmade-form'] }) %>

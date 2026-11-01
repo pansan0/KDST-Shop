@@ -1,0 +1,29 @@
+<%- include('../partials/head') %>
+<section class="stack">
+  <h1>ตรวจสินค้า</h1>
+  <nav class="filters" aria-label="กรองสถานะ">
+    <% for (const [k, t] of Object.entries(filters)) { %><a class="chip" href="/admin/products?status=<%= k %><%= kind ? '&kind=' + kind : '' %>" <%- status === k ? 'aria-current="true"' : '' %>><%= t %><%= k === 'pending' && badges.products ? ' (' + badges.products + ')' : '' %></a><% } %>
+  </nav>
+  <nav class="filters" aria-label="กรองชนิด">
+    <a class="chip" href="/admin/products?status=<%= status %>" <%- !kind ? 'aria-current="true"' : '' %>>ทุกชนิด</a>
+    <% for (const [k, t] of Object.entries(C.KINDS)) { %><a class="chip" href="/admin/products?status=<%= status %>&kind=<%= k %>" <%- kind === k ? 'aria-current="true"' : '' %>><%= t %></a><% } %>
+  </nav>
+  <div class="panel">
+    <% if (!products.length) { %><div class="empty">ไม่มีสินค้าในสถานะนี้</div><% } else { %>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>สินค้า</th><th>ผู้ขาย</th><th>ชนิด</th><th>ส่งเมื่อ</th><th>สถานะ</th><th></th></tr></thead>
+      <tbody><% for (const p of products) { const [st, cls] = C.PRODUCT_STATUS[p.status]; %>
+        <tr>
+          <td><div class="bookcell"><img class="thumb" src="/files/cover/<%= p.id %>" alt=""><div><b><%= p.title %></b><div class="small muted"><%= p.subtitle %></div><% if (p.rev > 1) { %><div class="small muted">ส่งครั้งที่ <%= p.rev %></div><% } %></div></div></td>
+          <td><%= p.shop %><div class="small muted"><%= p.seller_email %></div></td>
+          <td class="small"><%= C.KINDS[p.kind] %><br><%= C.ALL_CATS[p.category] %> · <%= C.thb(p.price) %><% if (p.metal) { %><br><%- pill('มีโลหะ', 'warn') %><% } %><% if (p.for_kids || p.small_parts) { %> <%- pill('เด็ก/ชิ้นเล็ก', 'warn') %><% } %></td>
+          <td class="small"><%= C.dt(p.submitted_at) %></td>
+          <td><%- pill(st, cls) %></td>
+          <td><a class="btn sm <%= p.status === 'pending' ? 'primary' : '' %>" href="/admin/products/<%= p.id %>"><%= p.status === 'pending' ? 'ตรวจ' : 'ดู' %></a></td>
+        </tr>
+      <% } %></tbody>
+    </table></div>
+    <% } %>
+  </div>
+</section>
+<%- include('../partials/foot') %>

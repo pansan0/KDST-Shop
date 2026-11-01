@@ -1,0 +1,34 @@
+<%- include('../partials/head') %>
+<section class="stack">
+  <div><h1>ผู้ซื้อ</h1><p class="muted lead">ระบบปิดสิทธิ์เก็บเงินปลายทางอัตโนมัติเมื่อพัสดุตีกลับครบ <%= settings.return_limit %> ครั้ง (ตั้งค่าได้) เปิดคืนได้ที่นี่</p></div>
+  <div class="panel">
+    <% if (!buyers.length) { %><div class="empty">ยังไม่มีผู้ซื้อ</div><% } else { %>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>ผู้ซื้อ</th><th>ติดต่อ</th><th class="r">คำสั่งซื้อ</th><th class="r">ยอดที่จ่ายแล้ว</th><th class="r">ตีกลับ</th><th>เก็บเงินปลายทาง</th><th>บัญชี</th></tr></thead>
+      <tbody><% for (const b of buyers) { %>
+        <tr>
+          <td><b><%= b.display_name %></b><div class="small muted">สมัคร <%= C.dt(b.created_at) %></div></td>
+          <td class="small"><%= b.email %><br><span class="num"><%= b.phone %></span></td>
+          <td class="num r"><%= b.orders %></td>
+          <td class="num r"><%= C.thb(b.spent) %></td>
+          <td class="num r"><%= b.returned %></td>
+          <td>
+            <form class="row" method="post" action="/admin/buyers/<%= b.id %>/cod">
+              <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="blocked" value="<%= b.cod_blocked ? 0 : 1 %>">
+              <%- b.cod_blocked ? pill('ปิดสิทธิ์', 'bad') : pill('ใช้ได้', 'good') %>
+              <button class="btn sm <%= b.cod_blocked ? 'good' : 'ghost' %>"><%= b.cod_blocked ? 'เปิดสิทธิ์คืน' : 'ปิดสิทธิ์' %></button>
+            </form>
+          </td>
+          <td>
+            <form method="post" action="/admin/users/<%= b.id %>/status" <% if (b.status === 'active') { %>data-confirm="ระงับบัญชี <%= b.display_name %>?"<% } %>>
+              <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="status" value="<%= b.status === 'active' ? 'suspended' : 'active' %>">
+              <button class="btn sm <%= b.status === 'active' ? 'ghost' : 'good' %>"><%= b.status === 'active' ? 'ระงับบัญชี' : 'เปิดใช้งาน' %></button>
+            </form>
+          </td>
+        </tr>
+      <% } %></tbody>
+    </table></div>
+    <% } %>
+  </div>
+</section>
+<%- include('../partials/foot') %>

@@ -1,0 +1,86 @@
+<%- include('../partials/head') %>
+<% const [st, cls] = C.PRODUCT_STATUS[p.status]; const label = { approved: 'อนุมัติ', changes: 'ส่งกลับแก้ไข', rejected: 'ไม่อนุมัติ', suspended: 'ระงับ' }; const hm = p.kind === 'handmade'; %>
+<p class="small"><a href="/admin/products" class="muted">← กลับรายการตรวจสินค้า</a></p>
+<section class="panel detail">
+  <div class="stack">
+    <div class="cv"><img src="/files/cover/<%= p.id %>" alt="<%= hm ? 'รูปหลัก' : 'ปก' %> <%= p.title %>"></div>
+    <% if (p.previews.length) { %>
+    <div class="previews"><% p.previews.forEach((_, i) => { %><a href="/files/preview/<%= p.id %>/<%= i %>" target="_blank" rel="noopener"><img src="/files/preview/<%= p.id %>/<%= i %>" alt="รูปที่ <%= i + 2 %>"></a><% }) %></div>
+    <% } %>
+    <% if (!hm) { %>
+      <% if (p.pdf_file) { %>
+        <a class="btn" href="/files/pdf/<%= p.id %>" target="_blank" rel="noopener">เปิดไฟล์เนื้อใน PDF</a>
+        <span class="small muted"><%= p.pdf_name %> · <%= (p.pdf_size / 1048576).toFixed(1) %> MB</span>
+      <% } else { %><span class="small muted">ไม่มีไฟล์ PDF (ข้อมูลตัวอย่าง)</span><% } %>
+      <% if (p.cover_pdf) { %><a class="btn" href="/files/cover-pdf/<%= p.id %>" target="_blank" rel="noopener">เปิดไฟล์ปก PDF</a><span class="small muted">ตรวจว่าภาพปกหน้าร้านตรงกับปก PDF</span><% } %>
+    <% } %>
+    <% if (p.cover_file) { %><a class="small" href="/files/cover/<%= p.id %>" target="_blank" rel="noopener">เปิดรูปหลักขนาดจริง (ตรวจพื้นขาว / ความละเอียด)</a><% } else { %><span class="small muted">ยังไม่มีรูปจริง แสดงภาพตัวอย่างจากระบบ</span><% } %>
+  </div>
+
+  <div class="stack">
+    <div>
+      <span class="eyebrow"><%= C.KINDS[p.kind] %></span>
+      <h1><%= p.title %></h1>
+      <div class="muted"><%= p.subtitle %></div>
+      <div class="row small">โดย <%= p.shop %> (<%= p.seller_email %>) <%- pill(st, cls) %> <% if (p.ai) { %><%- pill('มีภาพ AI', 'info') %><% } %> <span class="muted">ส่งครั้งที่ <%= p.rev %></span></div>
+    </div>
+    <p class="prose"><%= p.description %></p>
+    <dl class="specs">
+      <dt>หมวด</dt><dd><%= C.ALL_CATS[p.category] %><%= hm ? '' : ' · ' + C.AGES[p.age] %></dd>
+      <% if (hm) { %>
+      <dt>วัสดุ</dt><dd><%= p.materials || '–' %></dd>
+      <dt>วิธีทำ</dt><dd><%= C.METHOD[p.method] %> · <%= C.MADE_BY[p.made_by] %></dd>
+      <dt>ผลิต</dt><dd><%= p.lead_days %> วัน · รับได้ <%= p.weekly_capacity %> ชิ้น/สัปดาห์ · ค่าส่ง <%= C.thb(p.ship_fee) %></dd>
+      <dt>ความปลอดภัย</dt><dd><%= [p.metal && 'มีโลหะสัมผัสผิว', p.small_parts && 'มีชิ้นส่วนเล็ก', p.for_kids && 'ทำสำหรับเด็ก'].filter(Boolean).join(' · ') || 'ไม่มีโลหะ ไม่มีชิ้นส่วนเล็ก' %></dd>
+      <dt>ราคา</dt><dd class="num"><%= C.thb(p.price) %> · ผู้ขายได้ <%= C.thb(C.handmadeEarn(p.price, fee)) %>/ชิ้น (หัก <%= fee %>%)</dd>
+      <dt>ตัวเลือก</dt><dd><% if (!p.opts.length) { %>–<% } else { %><ul class="optlines"><% for (const o of p.opts) { %><li><b><%= o.label %></b> <span class="muted">(<%= C.OPTION_TYPES[o.type] %><%= o.required ? ', บังคับ' : '' %>)</span>:
+        <%= o.values ? o.values.map(v => v.label + (v.price ? ' +' + v.price : '')).join(', ') : o.type === 'text' ? `ไม่เกิน ${o.max_len} ตัว, ${o.charset === 'upper' ? 'A–Z 0–9' : 'ทั่วไป'}${o.price ? ', +' + o.price : ''}` : `${o.min}–${o.max} ${o.unit}` %></li><% } %></ul><% } %></dd>
+      <% } else { %>
+      <dt>สเปก</dt><dd><%= C.TRIMS[p.trim] %> · <%= p.pages %> หน้า · <%= C.INTERIOR[p.interior] %> · <%= C.PAPER[p.paper] %> · <%= C.FINISH[p.finish] %></dd>
+      <dt>ราคา</dt><dd class="num"><%= C.thb(p.price) %> · ค่าพิมพ์ <%= C.thb(C.printCost(p)) %> · ผู้ขายได้ <%= C.thb(C.royaltyUnit(p)) %>/เล่ม</dd>
+      <% } %>
+      <dt>คำค้น</dt><dd><%= p.keywords || '–' %></dd>
+    </dl>
+
+    <% if (p.status === 'pending') { %>
+    <form class="stack" method="post" action="/admin/products/<%= p.id %>/review">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <fieldset><legend>เช็กลิสต์มาตรฐาน (<%= hm ? 'Amazon Handmade / Etsy + EU REACH / US CPSIA' : 'สเปกงานพิมพ์ + แนวทางเนื้อหา KDP' %>)</legend>
+        <% for (const [k, t] of checklist) { %><label class="check" for="ck_<%= k %>"><input type="checkbox" id="ck_<%= k %>" name="ck_<%= k %>" value="1" <%- checks[k] ? 'checked' : '' %>> <%= t %></label><% } %>
+        <p class="hint">ต้องติ๊กครบทุกข้อจึงอนุมัติได้ ข้อความปลอดภัยเป็นคำยืนยันของผู้ขาย ขอเอกสารเพิ่มได้ด้วยการส่งกลับแก้ไข</p>
+      </fieldset>
+      <fieldset><legend>ผลการตรวจ</legend>
+        <div class="row">
+          <label class="check" for="d_ok"><input type="radio" id="d_ok" name="decision" value="approved"> อนุมัติวางขาย</label>
+          <label class="check" for="d_ch"><input type="radio" id="d_ch" name="decision" value="changes"> ส่งกลับให้แก้ไข</label>
+          <label class="check" for="d_no"><input type="radio" id="d_no" name="decision" value="rejected"> ไม่อนุมัติ</label>
+        </div>
+        <label class="f" for="note"><span>ข้อความถึงผู้ขาย (จำเป็นถ้าไม่อนุมัติหรือส่งกลับ)</span><textarea id="note" name="note" placeholder="<%= hm ? 'เช่น รูปหลักต้องเป็นพื้นขาว / ขอผลทดสอบนิกเกิลของตะขอ' : 'เช่น หน้า 12 และ 30 เส้นแตก กรุณาส่งไฟล์ 300 dpi' %>"></textarea></label>
+      </fieldset>
+      <div class="row"><button class="btn primary">บันทึกผลและไปรายการถัดไป</button><span class="hint">ผลจะแสดงในสตูดิโอของผู้ขายทันที</span></div>
+    </form>
+    <% } else if (['approved', 'archived'].includes(p.status)) { %>
+    <form class="stack" method="post" action="/admin/products/<%= p.id %>/suspend" data-confirm="ระงับการขายสินค้านี้?">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <fieldset><legend>ระงับการขาย</legend>
+        <label class="f" for="snote"><span>เหตุผล (ผู้ขายจะเห็น)</span><textarea id="snote" name="note" required minlength="5" placeholder="เช่น ได้รับแจ้งว่าใช้ภาพติดลิขสิทธิ์ / ลูกค้าแพ้นิกเกิล"></textarea></label>
+        <div><button class="btn bad">ระงับการขาย</button></div>
+      </fieldset>
+    </form>
+    <% } else if (p.status === 'suspended') { %>
+    <form method="post" action="/admin/products/<%= p.id %>/reinstate"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn good">ยกเลิกการระงับ กลับมาวางขาย</button></form>
+    <% } else { %>
+      <div class="flash warn">รอผู้ขายแก้ไขและส่งกลับมาใหม่</div>
+    <% } %>
+
+    <% if (history.length) { %>
+    <div>
+      <h3>ประวัติการตรวจ</h3>
+      <ul class="list-rows"><% for (const h of history) { %>
+        <li><div class="row between"><span><%- pill(label[h.decision] || h.decision, (C.PRODUCT_STATUS[h.decision] || ['', 'neutral'])[1]) %> <span class="small muted">ครั้งที่ <%= h.rev %> · <%= h.admin_name %></span></span><span class="small muted"><%= C.dt(h.created_at) %></span></div><% if (h.note) { %><div class="small"><%= h.note %></div><% } %></li>
+      <% } %></ul>
+    </div>
+    <% } %>
+  </div>
+</section>
+<%- include('../partials/foot') %>

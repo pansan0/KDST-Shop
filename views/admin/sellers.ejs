@@ -1,0 +1,58 @@
+<%- include('../partials/head') %>
+<section class="stack">
+  <h1>ผู้ขาย</h1>
+
+  <div class="panel" id="apps">
+    <h2>ใบสมัครขายงาน handmade</h2>
+    <p class="hint">ตรวจว่าทำเองจริง (ไม่ใช่ของโรงงานหรือ dropship) ทีมไม่เกิน 20 คน และรูปขั้นตอนการทำสอดคล้องกับคำอธิบาย</p>
+    <% if (!apps.length) { %><div class="empty">ยังไม่มีใบสมัคร</div><% } else { %>
+    <ul class="list-rows">
+      <% for (const a of apps) { const [st, cls] = C.APP_STATUS[a.status]; %>
+      <li id="app<%= a.id %>"><div class="stack-sm">
+        <div class="row between"><span><b><%= a.shop %></b> <span class="small muted"><%= a.email %> · <%= C.dt(a.created_at) %></span></span><%- pill(st, cls) %></div>
+        <p class="prose small"><%= a.about %></p>
+        <% if (a.imgs.length) { %><div class="previews"><% a.imgs.forEach((_, i) => { %><a href="/files/app/<%= a.id %>/<%= i %>" target="_blank" rel="noopener"><img src="/files/app/<%= a.id %>/<%= i %>" alt="รูปขั้นตอนการทำ <%= i + 1 %>"></a><% }) %></div><% } %>
+        <% if (a.status === 'applied') { %>
+        <form class="inline" method="post" action="/admin/applications/<%= a.id %>">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <input name="note" placeholder="หมายเหตุ / เหตุผลถ้าไม่ผ่าน" aria-label="หมายเหตุ">
+          <button class="btn sm good" name="decision" value="approved">อนุมัติ</button>
+          <button class="btn sm bad" name="decision" value="rejected">ไม่ผ่าน</button>
+        </form>
+        <% } else if (a.note) { %><div class="small muted">หมายเหตุ: <%= a.note %></div><% } %>
+      </div></li>
+      <% } %>
+    </ul>
+    <% } %>
+  </div>
+
+  <div class="panel">
+    <h2>ผู้ขายทั้งหมด</h2>
+    <% if (!sellers.length) { %><div class="empty">ยังไม่มีผู้ขายสมัคร แชร์ลิงก์ <span class="num">/seller/register</span></div><% } else { %>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>ผู้ขาย</th><th>ติดต่อ</th><th>Handmade</th><th class="r">วางขาย</th><th class="r">ขายได้</th><th>ส่งช้า / ยกเลิก / ตีกลับ</th><th class="r">ค้างจ่าย</th><th>สถานะ</th><th></th></tr></thead>
+      <tbody><% for (const s of sellers) { const [hs, hc] = C.APP_STATUS[s.handmade_status]; %>
+        <tr>
+          <td><b><%= s.display_name %></b><div class="small muted">เข้าล่าสุด <%= s.last_login_at ? C.dt(s.last_login_at) : '–' %></div></td>
+          <td class="small"><%= s.email %><br><span class="num"><%= s.phone || '–' %></span></td>
+          <td><%- pill(hs, hc) %></td>
+          <td class="num r"><%= s.live %> <span class="muted small">/ <%= s.submitted %></span></td>
+          <td class="num r"><%= s.stats.units %></td>
+          <td class="small num"><% if (s.metrics.total) { %><span class="<%= s.metrics.late > 4 ? 'bad-text' : '' %>"><%= s.metrics.late %>%</span> / <span class="<%= s.metrics.cancelled > 2.5 ? 'bad-text' : '' %>"><%= s.metrics.cancelled %>%</span> / <%= s.metrics.returned %>%<% } else { %><span class="muted">–</span><% } %></td>
+          <td class="num r"><%= C.thb(s.stats.balance) %></td>
+          <td><%- s.status === 'active' ? pill('ใช้งาน', 'good') : pill('ถูกระงับ', 'bad') %></td>
+          <td>
+            <form method="post" action="/admin/users/<%= s.id %>/status" <% if (s.status === 'active') { %>data-confirm="ระงับบัญชี <%= s.display_name %>? สินค้าทั้งหมดจะถูกซ่อนจากหน้าร้าน"<% } %>>
+              <input type="hidden" name="_csrf" value="<%= csrf %>">
+              <input type="hidden" name="status" value="<%= s.status === 'active' ? 'suspended' : 'active' %>">
+              <button class="btn sm <%= s.status === 'active' ? 'ghost' : 'good' %>"><%= s.status === 'active' ? 'ระงับบัญชี' : 'เปิดใช้งาน' %></button>
+            </form>
+          </td>
+        </tr>
+      <% } %></tbody>
+    </table></div>
+    <p class="hint">เกณฑ์อ้างอิงแบบ Amazon: ส่งช้าควรต่ำกว่า 4% ร้านยกเลิกเองควรต่ำกว่า 2.5%</p>
+    <% } %>
+  </div>
+</section>
+<%- include('../partials/foot') %>

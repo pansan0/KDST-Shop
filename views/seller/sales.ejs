@@ -1,0 +1,32 @@
+<%- include('../partials/head') %>
+<section class="stack">
+  <h1>ยอดขายและการรับเงิน</h1>
+  <div class="kpis">
+    <div class="kpi"><b><%= stats.units %></b><span>ชิ้นที่ขายได้ (ส่งถึงแล้ว)</span></div>
+    <div class="kpi"><b><%= C.thb(stats.earned) %></b><span>รายได้สะสม</span></div>
+    <div class="kpi"><b><%= C.thb(stats.paid) %></b><span>โอนให้แล้ว</span></div>
+    <div class="kpi accent"><b><%= C.thb(stats.balance) %></b><span>รอโอนให้คุณ</span></div>
+  </div>
+  <div class="panel">
+    <h2>รายการขาย</h2>
+    <p class="hint">รายได้นับเมื่อพัสดุส่งถึงและเก็บเงินปลายทางแล้ว · หนังสือ: ราคา × <%= C.ROYALTY * 100 %>% − ค่าพิมพ์ · handmade: ราคารวมตัวเลือก − ค่าธรรมเนียม <%= fee %>% + ค่าส่งที่คุณตั้ง</p>
+    <% if (!items.length) { %><div class="empty">ยังไม่มีคำสั่งซื้อ</div><% } else { %>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>วันที่</th><th>เลขที่</th><th>สินค้า</th><th class="r">จำนวน</th><th>สถานะพัสดุ</th><th class="r">คุณได้</th></tr></thead>
+      <tbody><% for (const i of items) { const [t, c] = C.shipStatus(i); const counted = i.status === 'delivered'; %>
+        <tr><td class="small"><%= C.dt(i.created_at) %></td><td class="num small"><%= i.code %></td>
+          <td><%= i.title %><%- include('../partials/lines', { lines: JSON.parse(i.options) }) %></td><td class="num r"><%= i.qty %></td><td><%- pill(t, c) %></td>
+          <td class="num r <%= counted ? '' : 'muted' %>"><%= C.thb(i.qty * i.earn_unit) %><%= counted ? '' : ' (ยังไม่นับ)' %></td></tr>
+      <% } %></tbody>
+    </table></div>
+    <% } %>
+  </div>
+  <div class="panel">
+    <div class="row between head-row"><h2>ประวัติการรับเงิน</h2><a class="small" href="/seller/account#payout">แก้ไขบัญชีรับเงิน</a></div>
+    <% if (!payouts.length) { %><div class="empty">ยังไม่มีการโอน</div><% } else { %>
+    <table><thead><tr><th>วันที่</th><th class="r">ยอด</th><th>อ้างอิง</th></tr></thead>
+      <tbody><% for (const p of payouts) { %><tr><td><%= C.dt(p.created_at) %></td><td class="num r"><%= C.thb(p.amount) %></td><td class="small"><%= p.ref %> <span class="muted"><%= p.note %></span></td></tr><% } %></tbody></table>
+    <% } %>
+  </div>
+</section>
+<%- include('../partials/foot') %>

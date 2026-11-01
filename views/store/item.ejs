@@ -1,0 +1,102 @@
+<%- include('../partials/head') %>
+<%
+  const hm = p.kind === 'handmade';
+  const catLabel = C.ALL_CATS[p.category];
+  const full = hm && left <= 0;
+  const val = k => form['opt_' + k];
+%>
+<nav class="crumbs small" aria-label="ตำแหน่ง"><a href="/">ร้านค้า</a><span aria-hidden="true">›</span><a href="/?cat=<%= p.kind %>"><%= hm ? 'Handmade' : 'หนังสือ' %></a><span aria-hidden="true">›</span><a href="/?cat=<%= p.category %>"><%= catLabel %></a></nav>
+
+<section class="pdp">
+  <div class="pdp-media">
+    <div class="pdp-cover">
+      <img src="/files/cover/<%= p.id %>" alt="<%= hm ? 'รูปสินค้า' : 'ปก' %> <%= p.title %>">
+      <span class="badge eco"><%- include('_leaf') %> <%= hm ? 'ทำเมื่อสั่ง' : 'พิมพ์เมื่อสั่ง' %></span>
+    </div>
+    <% if (p.previews.length) { %>
+    <p class="small muted"><%= hm ? 'รูปเพิ่มเติม' : 'หน้าตัวอย่าง' %> (กดเพื่อดูภาพใหญ่)</p>
+    <div class="pdp-previews"><% p.previews.forEach((_, i) => { %><a href="/files/preview/<%= p.id %>/<%= i %>" target="_blank" rel="noopener"><img src="/files/preview/<%= p.id %>/<%= i %>" alt="รูปที่ <%= i + 2 %>" loading="lazy"></a><% }) %></div>
+    <% } %>
+  </div>
+
+  <div class="pdp-info">
+    <div class="stack-sm">
+      <span class="small muted"><%= catLabel %><%= hm ? '' : ' · ' + C.AGES[p.age] %></span>
+      <h1><%= p.title %></h1>
+      <% if (p.subtitle) { %><p class="muted"><%= p.subtitle %></p><% } %>
+      <p class="small"><%= hm ? 'ทำโดย' : 'โดย' %> <b><%= p.shop %></b><% if (hm) { %> · <%= C.MADE_BY[p.made_by] %><% } %></p>
+    </div>
+    <div class="pdp-price"><b class="num" id="livePrice"><%= C.thb(p.price) %></b><span class="small muted">+ ค่าส่ง <%= C.thb(hm ? p.ship_fee : ship) %></span></div>
+
+    <div class="wait-note" role="note">
+      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <div><b><%= C.WAIT.text %></b><span>สินค้านี้<%= hm ? 'ทำ' : 'พิมพ์' %>ใหม่หลังคุณสั่ง คาดว่าจะได้รับ <b><%= C.day(eta[0]) %> – <%= C.day(eta[1]) %></b></span></div>
+    </div>
+    <ul class="perks">
+      <li><%- include('_leaf') %> <%= hm ? 'ทำเฉพาะชิ้นที่มีคนสั่ง ร้านส่งตรงถึงคุณ' : 'พิมพ์เฉพาะเล่มที่มีคนสั่ง Inkfold ส่งให้' %> ไม่มีของเหลือทิ้ง</li>
+      <li><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> เก็บเงินปลายทาง จ่ายเมื่อได้รับของ</li>
+    </ul>
+
+    <form class="buybox" id="addForm" method="post" action="/cart/add/<%= p.id %>" data-base="<%= p.price %>" data-options="<%= p.options %>">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <%- include('../partials/errors') %>
+      <% for (const o of p.opts) { const v = val(o.id); %>
+        <% if (o.type === 'select' || o.type === 'swatch') { %>
+        <fieldset class="optset">
+          <legend><%= o.label %><%= o.required ? ' *' : '' %></legend>
+          <div class="chips <%= o.type %>">
+            <% o.values.forEach((x, i) => { %>
+            <label class="chipopt">
+              <input type="radio" name="opt_<%= o.id %>" value="<%= i %>" <%- String(v) === String(i) ? 'checked' : '' %> <%- o.required ? 'required' : '' %>>
+              <span><% if (o.type === 'swatch') { %><i class="sw" style="background:<%= x.color || '#ddd' %>"></i><% } %><%= x.label %><% if (x.price) { %> <small>+<%= C.thb(x.price) %></small><% } %></span>
+            </label>
+            <% }) %>
+          </div>
+        </fieldset>
+        <% } else if (o.type === 'text') { %>
+        <label class="f optset" for="opt_<%= o.id %>">
+          <span><%= o.label %><%= o.required ? ' *' : ' (ไม่บังคับ)' %><% if (o.price) { %> · +<%= C.thb(o.price) %><% } %> · ไม่เกิน <%= o.max_len %> ตัว<%= o.charset === 'upper' ? ' (A–Z, 0–9, ♥)' : '' %></span>
+          <input id="opt_<%= o.id %>" name="opt_<%= o.id %>" maxlength="<%= o.max_len %>" value="<%= v || '' %>" data-text-opt <%- o.charset === 'upper' ? 'data-upper autocapitalize="characters"' : '' %> <%- o.required ? 'required' : '' %> autocomplete="off">
+        </label>
+        <% if (o.charset === 'upper') { %><div class="beads" aria-hidden="true" data-preview="opt_<%= o.id %>"></div><% } %>
+        <% } else { %>
+        <label class="f optset" for="opt_<%= o.id %>">
+          <span><%= o.label %><%= o.required ? ' *' : ' (ไม่บังคับ)' %> · <%= o.min %>–<%= o.max %> <%= o.unit %></span>
+          <input id="opt_<%= o.id %>" name="opt_<%= o.id %>" type="number" inputmode="decimal" min="<%= o.min %>" max="<%= o.max %>" step="<%= o.step %>" value="<%= v || '' %>" <%- o.required ? 'required' : '' %>>
+        </label>
+        <% } %>
+      <% } %>
+      <div class="row">
+        <div class="qty">
+          <button type="button" class="qbtn" data-step="-1" aria-label="ลดจำนวน">−</button>
+          <input id="qty" name="qty" type="number" min="1" max="20" value="<%= form.qty || 1 %>" aria-label="จำนวน">
+          <button type="button" class="qbtn" data-step="1" aria-label="เพิ่มจำนวน">+</button>
+        </div>
+        <button class="btn primary big grow" <%- full ? 'disabled' : '' %>><%= full ? 'เต็มคิวสัปดาห์นี้' : 'ใส่ตะกร้า' %></button>
+      </div>
+      <p class="hint"><%= C.WAIT.text %> นับจากวันสั่ง<% if (hm && !full && left <= 5) { %> · รับคิวได้อีก <%= left %> ชิ้นในสัปดาห์นี้<% } %></p>
+    </form>
+
+    <% if (p.description) { %><p class="prose"><%= p.description %></p><% } %>
+    <dl class="pdp-specs">
+      <% if (hm) { %>
+      <dt>วัสดุ</dt><dd><%= p.materials %></dd>
+      <dt>วิธีทำ</dt><dd><%= C.METHOD[p.method] %> · <%= C.MADE_BY[p.made_by] %></dd>
+      <% } else { %>
+      <dt>ขนาด</dt><dd><%= C.TRIMS[p.trim] %></dd>
+      <dt>เนื้อใน</dt><dd><%= p.pages %> หน้า · <%= C.INTERIOR[p.interior] %></dd>
+      <dt>กระดาษ</dt><dd><%= C.PAPER[p.paper] %></dd>
+      <dt>ปก</dt><dd><%= C.FINISH[p.finish] %> · เข้าเล่มไสกาว</dd>
+      <% if (p.ai) { %><dt>หมายเหตุ</dt><dd>ภาพบางส่วนสร้างด้วย AI</dd><% } %>
+      <% } %>
+    </dl>
+    <% if (hm && (p.small_parts || p.for_kids)) { %><div class="flash warn small">⚠ มีชิ้นส่วนเล็ก ไม่เหมาะกับเด็กอายุต่ำกว่า 3 ปี</div><% } %>
+    <% if (hm && p.opts.length) { %><p class="hint">งานสั่งทำตามแบบที่คุณเลือก เปลี่ยนหรือคืนได้เฉพาะกรณีสินค้าชำรุดหรือทำผิดจากที่สั่ง</p><% } %>
+  </div>
+</section>
+
+<div class="buybar" id="buybar">
+  <div><span class="small muted">ราคา</span><b class="num" id="barPrice"><%= C.thb(p.price) %></b></div>
+  <button class="btn primary big" form="addForm" <%- full ? 'disabled' : '' %>><%= full ? 'เต็มคิว' : 'ใส่ตะกร้า' %></button>
+</div>
+<%- include('../partials/foot', { scripts: ['item'] }) %>

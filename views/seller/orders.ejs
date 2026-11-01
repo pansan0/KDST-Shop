@@ -1,0 +1,47 @@
+<%- include('../partials/head') %>
+<% const late = s => C.OPEN_SHIP.includes(s.status) && s.status !== 'shipped' && Date.now() > s.due_at; %>
+<section class="stack">
+  <div><h1>คำสั่งซื้อ handmade</h1><p class="muted lead">กด <b>รับงาน</b> ภายใน 2 วันหลังมีคำสั่งซื้อ ทำตามตัวเลือกของลูกค้า แล้วใส่เลขพัสดุก่อนวันกำหนดส่ง พัสดุส่งแบบเก็บเงินปลายทางผ่านบัญชีขนส่งของ Inkfold · หนังสือ KDP ไม่ต้องทำอะไร เราพิมพ์และส่งให้</p></div>
+  <nav class="filters" aria-label="กรอง">
+    <% for (const [k, t] of Object.entries(filters)) { %><a class="chip" href="/seller/orders?tab=<%= k %>" <%- tab === k ? 'aria-current="true"' : '' %>><%= t %></a><% } %>
+  </nav>
+  <% if (!ships.length) { %><div class="panel empty">ไม่มีพัสดุในหมวดนี้</div><% } %>
+  <% for (const s of ships) { const [st, cls] = C.shipStatus(s); %>
+  <div class="panel stack">
+    <div class="row between">
+      <div><b class="num"><%= s.code %></b> <span class="small muted">สั่งเมื่อ <%= C.dt(s.created_at) %></span>
+        <div class="small <%= late(s) ? '' : 'muted' %>"><%= late(s) ? '⚠ เลยกำหนดส่งแล้ว' : 'กำหนดส่ง' %> <%= C.day(s.due_at) %></div></div>
+      <%- pill(st, cls) %>
+    </div>
+    <div class="two">
+      <div class="stack-sm">
+        <h3>ใบสั่งผลิต</h3>
+        <% for (const i of s.items) { %>
+        <div class="prodsheet"><b><%= i.title %> × <%= i.qty %></b><%- include('../partials/lines', { lines: i.lines }) %></div>
+        <% } %>
+        <div class="small muted">เก็บเงินปลายทาง <span class="num"><%= C.thb(s.items_total + s.ship_fee) %></span> (สินค้า <%= C.thb(s.items_total) %> + ค่าส่ง <%= C.thb(s.ship_fee) %>)</div>
+      </div>
+      <div class="stack-sm">
+        <h3>ส่งถึง</h3>
+        <% if (s.showBuyer) { %>
+          <div><%= s.ship_name %> · <span class="num"><%= s.ship_phone %></span><br><span class="muted"><%= s.ship_address %></span></div>
+        <% } else { %><div class="small muted">ซ่อนข้อมูลผู้ซื้อแล้ว (PDPA: แสดงเฉพาะระหว่างจัดส่งและ 30 วันหลังส่งถึง)</div><% } %>
+        <% if (s.tracking) { %><div class="small">เลขพัสดุ <b class="num"><%= s.tracking %></b></div><% } %>
+        <% if (s.note && ['cancelled', 'returned'].includes(s.status)) { %><div class="small muted"><%= s.note %></div><% } %>
+      </div>
+    </div>
+    <div class="row actions">
+      <% const hidden = `<input type="hidden" name="_csrf" value="${csrf}"><input type="hidden" name="tab" value="${tab}">`; %>
+      <% if (s.status === 'placed') { %>
+        <form method="post" action="/seller/shipments/<%= s.id %>/start"><%- hidden %><button class="btn primary">รับงาน · เริ่มทำ</button></form>
+      <% } else if (s.status === 'in_production') { %>
+        <form class="inline" method="post" action="/seller/shipments/<%= s.id %>/ship"><%- hidden %><input name="tracking" placeholder="เลขพัสดุ" aria-label="เลขพัสดุ" required><button class="btn primary sm">จัดส่งแล้ว</button></form>
+      <% } %>
+      <% if (['placed', 'in_production'].includes(s.status)) { %>
+        <form class="inline" method="post" action="/seller/shipments/<%= s.id %>/cancel" data-confirm="ยกเลิกพัสดุนี้? จะนับในอัตราร้านยกเลิกเอง"><%- hidden %><input name="note" placeholder="เหตุผล (ผู้ซื้อจะเห็น)" aria-label="เหตุผลที่ยกเลิก" required minlength="3"><button class="btn sm ghost">ยกเลิก</button></form>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
+</section>
+<%- include('../partials/foot') %>

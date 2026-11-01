@@ -1,0 +1,5 @@
+</main>
+<script src="/static/js/common.js?v=<%= asset('js/common.js') %>"></script>
+<% if (typeof scripts !== 'undefined') for (const s of scripts) { %><script src="/static/js/<%= s %>.js?v=<%= asset('js/' + s + '.js') %>"></script><% } %>
+</body>
+</html>

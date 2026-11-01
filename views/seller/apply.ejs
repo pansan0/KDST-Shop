@@ -1,0 +1,23 @@
+<%- include('../partials/head') %>
+<% const [st, cls] = C.APP_STATUS[seller.handmade_status]; %>
+<section class="stack half">
+  <p class="small"><a href="/seller" class="muted">← สินค้าของฉัน</a></p>
+  <div class="row between"><h1>สมัครขายงาน Handmade</h1><%- pill(st, cls) %></div>
+  <p class="muted lead">หมวด handmade รับเฉพาะสินค้าที่ <b>ทำ ประกอบ หรือดัดแปลงด้วยมือ</b> ของคุณเองหรือทีมเล็ก (ไม่เกิน 20 คน) ไม่รับของโรงงานซื้อมาขายต่อหรือ dropship เราจึงขอดูวิธีทำก่อนเปิดสิทธิ์ เหมือน Amazon Handmade และ Etsy</p>
+
+  <% if (seller.handmade_status === 'approved') { %>
+    <div class="flash good">ได้รับอนุมัติแล้ว <a href="/seller/products/new?kind=handmade">ลงขายสินค้า handmade</a></div>
+  <% } else if (seller.handmade_status === 'applied') { %>
+    <div class="flash warn">ส่งใบสมัครเมื่อ <%= C.dt(app.created_at) %> อยู่ระหว่างพิจารณา</div>
+  <% } else { %>
+    <% if (app && app.status === 'rejected') { %><div class="flash bad"><b>ใบสมัครครั้งก่อนไม่ผ่าน</b> <%= app.note %> · แก้ไขแล้วส่งใหม่ได้</div><% } %>
+    <form class="panel form" method="post" enctype="multipart/form-data" action="/seller/handmade/apply?_csrf=<%= csrf %>">
+      <%- include('../partials/errors') %>
+      <label class="f" for="about"><span>เล่าว่าคุณทำสินค้าอย่างไร (วัสดุ เครื่องมือ ขั้นตอน ใครเป็นคนทำ)</span><textarea id="about" name="about" minlength="50" maxlength="2000" required><%= form.about || '' %></textarea></label>
+      <label class="f" for="app_images"><span>รูปขั้นตอนการทำ 2–3 รูป (เช่น โต๊ะทำงาน ชิ้นงานระหว่างทำ)</span><input id="app_images" name="app_images" type="file" accept="image/png,image/jpeg,image/webp" multiple required></label>
+      <label class="check" for="declare"><input type="checkbox" id="declare" name="declare" value="1" required> ฉันยืนยันว่าสินค้าที่จะลงขายในหมวด handmade ทำหรือประกอบด้วยมือของฉันหรือทีมของฉันเอง</label>
+      <div><button class="btn primary">ส่งใบสมัคร</button></div>
+    </form>
+  <% } %>
+</section>
+<%- include('../partials/foot') %>

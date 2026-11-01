@@ -1,0 +1,44 @@
+<%- include('../partials/head') %>
+<section class="stack">
+  <h1>ตั้งค่า</h1>
+  <div class="two">
+    <form class="panel form" method="post" action="/admin/settings">
+      <h2>ร้านและการชำระเงิน</h2>
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label class="f" for="store_name"><span>ชื่อร้าน</span><input id="store_name" name="store_name" required maxlength="60" value="<%= settings.store_name %>"></label>
+      <p class="hint">ชำระเงินแบบเก็บเงินปลายทางอย่างเดียวในเฟสนี้ (ยังไม่เชื่อม payment gateway)</p>
+      <div class="fgrid">
+        <label class="f" for="shipping"><span>ค่าส่งพัสดุหนังสือ (บาท/พัสดุ)</span><input id="shipping" name="shipping" type="number" min="0" value="<%= settings.shipping %>"></label>
+        <label class="f" for="hm_fee_pct"><span>ค่าธรรมเนียม handmade (%)</span><input id="hm_fee_pct" name="hm_fee_pct" type="number" min="0" max="50" value="<%= settings.hm_fee_pct %>"></label>
+      </div>
+      <div class="fgrid">
+        <label class="f" for="cod_limit"><span>ยอดเก็บเงินปลายทางสูงสุดต่อคำสั่งซื้อ (0 = ไม่จำกัด)</span><input id="cod_limit" name="cod_limit" type="number" min="0" value="<%= settings.cod_limit %>"></label>
+        <label class="f" for="return_limit"><span>ตีกลับกี่ครั้งจึงปิดสิทธิ์ COD (0 = ไม่ปิด)</span><input id="return_limit" name="return_limit" type="number" min="0" max="20" value="<%= settings.return_limit %>"></label>
+      </div>
+      <div class="calc small">
+        <div>ค่าพิมพ์ที่ใช้คำนวณ: ขาวดำ <%= C.thb(C.PRINT.bwPerPage) %>/หน้า · สี่สี <%= C.thb(C.PRINT.colorPerPage) %>/หน้า · ปกและเข้าเล่ม <%= C.thb(C.PRINT.base) %> (6×9 นิ้ว <%= C.thb(C.PRINT.baseSmall) %>)</div>
+        <div>หนังสือ: ผู้ขายได้ <%= C.ROYALTY * 100 %>% ของราคาขาย หักค่าพิมพ์ (แก้ได้ใน <code>lib/catalog.js</code>) · handmade: ผู้ขายได้ราคาขายหักค่าธรรมเนียมด้านบน บวกค่าส่งที่ร้านตั้ง</div>
+      </div>
+      <div><button class="btn primary">บันทึกการตั้งค่า</button></div>
+    </form>
+    <div class="stack">
+      <div class="panel">
+        <h2>ทีมแอดมิน</h2>
+        <table><thead><tr><th>ชื่อ</th><th>เข้าล่าสุด</th></tr></thead>
+          <tbody><% for (const a of admins) { %><tr><td><%= a.display_name %><div class="small muted"><%= a.email %></div></td><td class="small"><%= a.last_login_at ? C.dt(a.last_login_at) : '–' %></td></tr><% } %></tbody></table>
+        <p class="hint"><% if (inviteOn) { %>เปิดรับสมัครแอดมินอยู่ ส่งลิงก์ <span class="num">/admin/register</span> พร้อมรหัสเชิญ (ADMIN_INVITE_CODE ใน .env) ให้ทีมงาน<% } else { %>ปิดรับสมัครแอดมินอยู่ ตั้ง ADMIN_INVITE_CODE ใน .env แล้วรีสตาร์ตเพื่อเปิด<% } %></p>
+      </div>
+      <form class="panel form" method="post" action="/admin/password">
+        <h2>เปลี่ยนรหัสผ่านของฉัน</h2>
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <label class="f" for="current_password"><span>รหัสผ่านปัจจุบัน</span><input id="current_password" name="current_password" type="password" autocomplete="current-password" required></label>
+        <div class="fgrid">
+          <label class="f" for="new_password"><span>รหัสผ่านใหม่</span><input id="new_password" name="new_password" type="password" autocomplete="new-password" minlength="8" required></label>
+          <label class="f" for="confirm"><span>ยืนยัน</span><input id="confirm" name="confirm" type="password" autocomplete="new-password" minlength="8" required></label>
+        </div>
+        <div><button class="btn">เปลี่ยนรหัสผ่าน</button></div>
+      </form>
+    </div>
+  </div>
+</section>
+<%- include('../partials/foot') %>

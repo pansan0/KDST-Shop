@@ -1,0 +1,35 @@
+<%- include('../partials/head') %>
+<section class="stack">
+  <h1>บัญชีของฉัน</h1>
+  <div class="two">
+    <form class="panel form" method="post" action="/seller/account/profile">
+      <h2>ข้อมูลร้าน</h2>
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label class="f" for="display_name"><span>นามปากกา / ชื่อร้าน</span><input id="display_name" name="display_name" minlength="2" maxlength="60" required value="<%= me.display_name %>"></label>
+      <label class="f" for="email"><span>อีเมลที่ใช้เข้าสู่ระบบ</span><input id="email" value="<%= me.email %>" disabled></label>
+      <label class="f" for="phone"><span>เบอร์โทร</span><input id="phone" name="phone" type="tel" value="<%= me.phone %>"></label>
+      <div><button class="btn">บันทึกข้อมูลร้าน</button></div>
+    </form>
+    <form class="panel form" method="post" action="/seller/account/payout" id="payout">
+      <h2>บัญชีรับเงิน</h2>
+      <p class="hint">ระบบยังไม่เชื่อมธนาคาร แอดมินจะโอนให้ตามรอบและบันทึกในระบบ ข้อมูลนี้เห็นเฉพาะคุณและแอดมิน</p>
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label class="f" for="payout_account"><span>พร้อมเพย์ หรือเลขบัญชี</span><input id="payout_account" name="payout_account" value="<%= me.payout_account %>"></label>
+      <label class="f" for="payout_name"><span>ชื่อบัญชี</span><input id="payout_name" name="payout_name" value="<%= me.payout_name %>"></label>
+      <label class="f" for="payout_bank"><span>ธนาคาร (ถ้าใช้เลขบัญชี)</span><input id="payout_bank" name="payout_bank" value="<%= me.payout_bank %>"></label>
+      <div><button class="btn">บันทึกบัญชีรับเงิน</button></div>
+    </form>
+  </div>
+  <form class="panel form half" method="post" action="/seller/password">
+    <h2>เปลี่ยนรหัสผ่าน</h2>
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label class="f" for="current_password"><span>รหัสผ่านปัจจุบัน</span><input id="current_password" name="current_password" type="password" autocomplete="current-password" required></label>
+    <div class="fgrid">
+      <label class="f" for="new_password"><span>รหัสผ่านใหม่</span><input id="new_password" name="new_password" type="password" autocomplete="new-password" minlength="8" required></label>
+      <label class="f" for="confirm"><span>ยืนยันรหัสผ่านใหม่</span><input id="confirm" name="confirm" type="password" autocomplete="new-password" minlength="8" required></label>
+    </div>
+    <div><button class="btn">เปลี่ยนรหัสผ่าน</button></div>
+  </form>
+  <p class="small muted">สมัครเมื่อ <%= C.dt(me.created_at) %></p>
+</section>
+<%- include('../partials/foot') %>

@@ -1,0 +1,78 @@
+<%- include('../partials/head') %>
+<%
+  const f = form;
+  const opt = (map, cur) => Object.entries(map).map(([k, t]) => `<option value="${k}"${k === cur ? ' selected' : ''}>${t}</option>`).join('');
+  const book = product;
+  const isDraft = !book || book.status === 'draft';
+  const pricing = JSON.stringify({ ...C.PRINT, royalty: C.ROYALTY });
+%>
+<p class="small"><a href="/seller" class="muted">← สินค้าของฉัน</a></p>
+<form class="stack" id="bookForm" method="post" enctype="multipart/form-data"
+      action="<%= book ? '/seller/products/' + book.id + '?' : '/seller/products?kind=kdp&' %>_csrf=<%= csrf %>" data-pricing="<%= pricing %>">
+  <div class="row between">
+    <div><span class="eyebrow">หนังสือพิมพ์ตามสั่ง (KDP) · เราพิมพ์และส่งให้</span><h1><%= book ? 'แก้ไขหนังสือ' : 'ลงขายหนังสือเล่มใหม่' %></h1>
+      <% if (book) { const [st, cls] = C.PRODUCT_STATUS[book.status]; %><div class="row small">สถานะปัจจุบัน <%- pill(st, cls) %><% if (book.rev) { %><span class="muted">ส่งตรวจแล้ว <%= book.rev %> ครั้ง</span><% } %></div><% } %>
+    </div>
+  </div>
+  <%- include('../partials/errors') %>
+  <% if (review && review.note && ['changes', 'rejected'].includes(book.status)) { %>
+    <div class="flash <%= book.status === 'changes' ? 'warn' : 'bad' %>"><b>ข้อความจากแอดมิน</b> <%= review.note %></div>
+  <% } %>
+  <% if (book && book.status === 'approved') { %><div class="flash warn">เล่มนี้วางขายอยู่ เมื่อส่งตรวจใหม่จะถูกซ่อนจากหน้าร้านจนกว่าแอดมินอนุมัติ</div><% } %>
+
+  <div class="two">
+    <div class="stack">
+      <fieldset><legend>รายละเอียด</legend>
+        <label class="f" for="title"><span>ชื่อเรื่อง</span><input id="title" name="title" maxlength="120" required value="<%= f.title || '' %>"></label>
+        <label class="f" for="subtitle"><span>ชื่อรอง</span><input id="subtitle" name="subtitle" maxlength="160" value="<%= f.subtitle || '' %>" placeholder="เช่น สมุดระบายสีสัตว์ป่า 40 ลาย"></label>
+        <label class="f" for="description"><span>คำโปรย (แสดงบนหน้าร้าน)</span><textarea id="description" name="description" maxlength="2000"><%= f.description || '' %></textarea></label>
+        <div class="fgrid">
+          <label class="f" for="category"><span>ประเภท</span><select id="category" name="category"><%- opt(C.CATS, f.category) %></select></label>
+          <label class="f" for="age"><span>ช่วงอายุ</span><select id="age" name="age"><%- opt(C.AGES, f.age) %></select></label>
+        </div>
+        <label class="f" for="keywords"><span>คำค้น (คั่นด้วยจุลภาค)</span><input id="keywords" name="keywords" maxlength="300" value="<%= f.keywords || '' %>"></label>
+      </fieldset>
+      <fieldset><legend>ไฟล์งาน</legend>
+        <label class="f" for="cover"><span>ไฟล์ปก JPG, PNG หรือ PDF <% if (book && book.cover_pdf) { %><em class="ok">· มีปก PDF แล้ว</em> <a href="/files/cover-pdf/<%= book.id %>" target="_blank" rel="noopener">เปิดดู</a><% } else if (book && book.cover_file) { %><em class="ok">· มีไฟล์แล้ว</em><% } %></span><input id="cover" name="cover" type="file" accept="image/png,image/jpeg,application/pdf"></label>
+        <label class="f" for="cover_image"><span>ภาพปกสำหรับหน้าร้าน JPG/PNG (ต้องใส่ถ้าไฟล์ปกเป็น PDF) <% if (book && book.cover_pdf && book.cover_file) { %><em class="ok">· มีไฟล์แล้ว</em><% } %></span><input id="cover_image" name="cover_image" type="file" accept="image/png,image/jpeg"></label>
+        <label class="f" for="pdf"><span>เนื้อใน PDF พร้อมพิมพ์ <% if (book && book.pdf_file) { %><em class="ok">· <%= book.pdf_name %></em> <a href="/files/pdf/<%= book.id %>" target="_blank" rel="noopener">เปิดดู</a><% } %></span><input id="pdf" name="pdf" type="file" accept="application/pdf"></label>
+        <label class="f" for="previews"><span>ภาพตัวอย่างหน้าใน สูงสุด 4 ภาพ <% if (book && JSON.parse(book.preview_files).length) { %><em class="ok">· มี <%= JSON.parse(book.preview_files).length %> ภาพ (อัปโหลดใหม่จะแทนที่)</em><% } %></span><input id="previews" name="previews" type="file" accept="image/png,image/jpeg,image/webp" multiple data-max="4"></label>
+        <ul class="hint list">
+          <li>หน้าร้านแจ้งลูกค้าทุกคนว่า<%= C.WAIT.text %> (เราพิมพ์และส่งให้)</li>
+          <li>PDF ต้องเป็นขนาดเล่มจริง + ระยะตัดตก 3 มม. ทุกด้าน</li>
+          <li>ปก: รูป JPG/PNG อย่างน้อย 2550 × 3300 px หรือ PDF พร้อมพิมพ์ ถ้าเป็น PDF ต้องแนบภาพปกหน้าเป็น JPG/PNG ไว้แสดงบนหน้าร้านด้วย</li>
+          <li>สมุดระบายสี: พิมพ์ลายหน้าขวาเพียงหน้าเดียว เว้นด้านหลังว่างกันสีซึม</li>
+          <li>นิทานภาพ: เลือกเนื้อในสี่สี · นวนิยายและเรื่องสั้น: แนะนำ 6 × 9 นิ้ว กระดาษถนอมสายตา</li>
+          <li>ไฟล์ PDF ไม่เกิน 200 MB · ภาพไม่เกิน 20 MB</li>
+        </ul>
+      </fieldset>
+    </div>
+    <div class="stack">
+      <fieldset><legend>สเปกการพิมพ์</legend>
+        <div class="fgrid">
+          <label class="f" for="trim"><span>ขนาด</span><select id="trim" name="trim"><%- opt(C.TRIMS, f.trim) %></select></label>
+          <label class="f" for="pages"><span>จำนวนหน้า (เลขคู่)</span><input id="pages" name="pages" type="number" min="<%= C.MIN_PAGES %>" max="<%= C.MAX_PAGES %>" step="2" value="<%= f.pages %>"></label>
+        </div>
+        <div class="fgrid">
+          <label class="f" for="interior"><span>เนื้อใน</span><select id="interior" name="interior"><%- opt(C.INTERIOR, f.interior) %></select></label>
+          <label class="f" for="paper"><span>กระดาษ</span><select id="paper" name="paper"><%- opt(C.PAPER, f.paper) %></select></label>
+          <label class="f" for="finish"><span>ปก</span><select id="finish" name="finish"><%- opt(C.FINISH, f.finish) %></select></label>
+        </div>
+      </fieldset>
+      <fieldset><legend>ราคาและค่าลิขสิทธิ์</legend>
+        <label class="f" for="price"><span>ราคาขาย (บาท)</span><input id="price" name="price" type="number" min="1" step="1" value="<%= f.price %>"></label>
+        <div class="calc" id="royCalc">
+          <div class="ln"><span>คุณได้ต่อเล่ม</span><b class="num"><%= C.thb(C.royaltyUnit(f)) %></b></div>
+        </div>
+      </fieldset>
+      <label class="check" for="ai"><input type="checkbox" id="ai" name="ai" value="1" <%- f.ai ? 'checked' : '' %>> มีภาพที่สร้างด้วย AI</label>
+      <label class="check" for="rights"><input type="checkbox" id="rights" name="rights" value="1"> ฉันเป็นเจ้าของลิขสิทธิ์ภาพและเนื้อหาทั้งหมด หรือได้รับอนุญาตเชิงพาณิชย์แล้ว</label>
+    </div>
+  </div>
+  <div class="row sticky-actions">
+    <button class="btn primary" name="action" value="submit">ส่งให้แอดมินตรวจ</button>
+    <% if (isDraft) { %><button class="btn" name="action" value="draft" formnovalidate>บันทึกร่าง</button><% } %>
+    <span class="hint">อัปโหลดไฟล์ใหญ่อาจใช้เวลาสักครู่</span>
+  </div>
+</form>
+<%- include('../partials/foot', { scripts: ['book-form'] }) %>

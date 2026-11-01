@@ -1,0 +1,29 @@
+<%- include('../partials/head') %>
+<section class="stack narrow-col">
+  <h1>คำสั่งซื้อของฉัน</h1>
+  <% if (!orders.length) { %>
+    <div class="empty-shop"><p>ยังไม่มีคำสั่งซื้อ</p><a class="btn primary" href="/">เลือกสินค้า</a></div>
+  <% } else { %>
+  <ul class="my-orders">
+    <% for (const o of orders) { const items = o.shipments.flatMap(s => s.items); const MAX = 4; %>
+    <li><a class="order-card" href="/account/orders/<%= o.code %>">
+      <div class="row between">
+        <div><b class="num"><%= o.code %></b> <span class="small muted"><%= C.dt(o.created_at) %></span></div>
+        <%- pill(o.state[0], o.state[1]) %>
+      </div>
+      <div class="order-items">
+      <div class="order-thumbs">
+        <% for (const i of items.slice(0, MAX)) { %>
+        <span class="order-thumb"><img src="/files/cover/<%= i.product_id %>" alt="<%= i.title %>" loading="lazy"><% if (i.qty > 1) { %><b>×<%= i.qty %></b><% } %></span>
+        <% } %>
+        <% if (items.length > MAX) { %><span class="order-thumb more">+<%= items.length - MAX %></span><% } %>
+      </div>
+      <span class="small order-titles"><%= items.map(i => i.title).join(', ') %></span>
+      </div>
+      <div class="small muted r"><%= o.shipments.length %> พัสดุ · <b class="num order-total"><%= C.thb(o.total) %></b></div>
+    </a></li>
+    <% } %>
+  </ul>
+  <% } %>
+</section>
+<%- include('../partials/foot') %>

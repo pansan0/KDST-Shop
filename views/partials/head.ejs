@@ -1,0 +1,50 @@
+<%
+  const NAV = {
+    store: user && user.role === 'buyer'
+      ? [['/', 'ร้านค้า'], ['/cart', 'ตะกร้า', 'cart'], ['/account/orders', 'คำสั่งซื้อของฉัน'], ['/account', 'บัญชี']]
+      : [['/', 'ร้านค้า'], ['/account/login', 'เข้าสู่ระบบ'], ['/seller', 'ขายกับเรา']],
+    seller: [['/seller', 'สินค้าของฉัน'], ['/seller/orders', 'คำสั่งซื้อ', 'orders'], ['/seller/sales', 'ยอดขายและการรับเงิน'], ['/seller/account', 'บัญชี']],
+    admin: [['/admin', 'ภาพรวม'], ['/admin/products', 'ตรวจสินค้า', 'products'], ['/admin/orders', 'คำสั่งซื้อ', 'orders'], ['/admin/sellers', 'ผู้ขาย', 'apps'], ['/admin/buyers', 'ผู้ซื้อ'], ['/admin/payouts', 'จ่ายเงิน'], ['/admin/settings', 'ตั้งค่า']],
+  };
+  const ROLE = { store: 'buyer', seller: 'seller', admin: 'admin' }[portal];
+  const signedIn = user && user.role === ROLE;
+  const showNav = portal === 'store' || signedIn;
+  const home = portal === 'store' ? '/' : '/' + portal;
+  // The longest nav link that prefixes the current path wins, so /account/orders lights "คำสั่งซื้อ" not "บัญชี".
+  const matches = href => path === href || (href !== '/' && path.startsWith(href + '/')) || (href === '/' && path.startsWith('/item/'));
+  const activeHref = NAV[portal].map(n => n[0]).filter(matches).sort((a, b) => b.length - a.length)[0];
+  const isActive = href => href === activeHref;
+  const tag = { store: 'Print-on-Demand', seller: 'สตูดิโอผู้ขาย', admin: 'ระบบหลังร้าน' }[portal];
+%><!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= title %> · <%= settings.store_name %><%= portal === 'admin' ? ' แอดมิน' : portal === 'seller' ? ' ผู้ขาย' : '' %></title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Mitr:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css?v=<%= asset('app.css') %>">
+</head>
+<body class="portal-<%= portal %>">
+<header class="top"><div class="top-in">
+  <a class="brand" href="<%= home %>">
+    <svg width="26" height="26" viewBox="0 0 28 28" aria-hidden="true"><rect x="3" y="3" width="17" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 3v22" stroke="currentColor" stroke-width="2"/><circle cx="21" cy="19" r="5" fill="var(--brand-dot)"/></svg>
+    <span><%= settings.store_name %></span><span class="tag"><%= tag %></span>
+  </a>
+  <% if (showNav) { %>
+  <nav class="tabs" aria-label="เมนูหลัก">
+    <% for (const [href, label, badge] of NAV[portal]) { const n = badge && badges ? badges[badge] : 0; %>
+      <a class="tab" href="<%= href %>" <%- isActive(href) ? 'aria-current="page"' : '' %>><%= label %><% if (n) { %><span class="count"><%= n %></span><% } %></a>
+    <% } %>
+  </nav>
+  <% } %>
+  <% if (signedIn) { %>
+  <div class="who">
+    <span class="small"><%= user.display_name %></span>
+    <form method="post" action="/<%= portal === 'store' ? 'account' : portal %>/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn sm">ออกจากระบบ</button></form>
+  </div>
+  <% } %>
+</div></header>
+<main class="<%= typeof bare !== 'undefined' && bare ? 'narrow' : '' %>">
+<% if (flash) { %><div class="flash <%= flash.type %>" role="status"><%= flash.msg %></div><% } %>

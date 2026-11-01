@@ -1,0 +1,55 @@
+<%- include('../partials/head') %>
+<section class="stack narrow-col">
+  <h1>ตะกร้า</h1>
+  <% if (!cart.length) { %>
+    <div class="empty-shop"><p>ตะกร้ายังว่าง</p><a class="btn primary" href="/">เลือกสินค้า</a></div>
+  <% } else { %>
+  <% if (problems.length) { %><div class="flash bad" role="alert"><ul><% for (const e of problems) { %><li><%= e %></li><% } %></ul></div><% } %>
+
+  <% for (const g of plan.shipments) { %>
+  <div class="cstep">
+    <h3><%- include('../store/_leaf') %> <%= g.fulfilled_by === 'platform' ? 'พัสดุจาก Inkfold (พิมพ์และส่งโดยเรา)' : 'พัสดุจากร้าน ' + g.shop %></h3>
+    <% for (const r of g.rows) { %>
+    <div class="cart-row">
+      <a href="/item/<%= r.product.id %>"><img class="cart-img" src="/files/cover/<%= r.product.id %>" alt=""></a>
+      <div class="stack-sm">
+        <a class="cart-t" href="/item/<%= r.product.id %>"><%= r.product.title %></a>
+        <%- include('../partials/lines', { lines: r.lines }) %>
+        <div class="row">
+          <form class="row" method="post" action="/cart/<%= r.id %>/qty">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <label class="small muted" for="q<%= r.id %>">จำนวน</label>
+            <input class="qty-sm" id="q<%= r.id %>" name="qty" type="number" min="1" max="20" value="<%= r.qty %>">
+            <button class="btn sm">อัปเดต</button>
+          </form>
+          <form method="post" action="/cart/<%= r.id %>/remove"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn sm ghost">ลบ</button></form>
+        </div>
+      </div>
+      <b class="num"><%= C.thb(r.unit * r.qty) %></b>
+    </div>
+    <% } %>
+    <div class="row between small muted"><span>ค่าส่งพัสดุนี้</span><span class="num"><%= C.thb(g.ship_fee) %></span></div>
+  </div>
+  <% } %>
+  <% for (const r of cart.filter(r => !r.product)) { %>
+  <div class="cstep row between">
+    <span class="muted">สินค้านี้ปิดการขายแล้ว</span>
+    <form method="post" action="/cart/<%= r.id %>/remove"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn sm">ลบออกจากตะกร้า</button></form>
+  </div>
+  <% } %>
+
+  <div class="wait-note" role="note"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div><b><%= C.WAIT.text %></b><span>ทุกชิ้นผลิตใหม่หลังคุณสั่ง คาดว่าจะได้รับ <b><%= C.day(C.waitRange(Date.now())[0]) %> – <%= C.day(C.waitRange(Date.now())[1]) %></b></span></div></div>
+  <div class="calc">
+    <div class="ln"><span>ราคาสินค้า</span><span class="num"><%= C.thb(plan.items_total) %></span></div>
+    <div class="ln"><span>ค่าส่ง (<%= plan.shipments.length %> พัสดุ)</span><span class="num"><%= C.thb(plan.ship_total) %></span></div>
+    <div class="ln tot"><span>ยอดรวม</span><b class="num"><%= C.thb(plan.total) %></b></div>
+  </div>
+  <% if (problems.length) { %>
+    <button class="btn primary big block" disabled>แก้ปัญหาด้านบนก่อนสั่งซื้อ</button>
+  <% } else { %>
+    <a class="btn primary big block" href="/checkout">ไปหน้าชำระเงิน</a>
+  <% } %>
+  <a class="btn ghost" href="/">เลือกสินค้าต่อ</a>
+  <% } %>
+</section>
+<%- include('../partials/foot') %>

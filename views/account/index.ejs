@@ -1,0 +1,55 @@
+<%- include('../partials/head') %>
+<section class="stack narrow-col">
+  <h1>บัญชีของฉัน</h1>
+  <% if (me.cod_blocked) { %><div class="flash bad">บัญชีนี้ถูกปิดสิทธิ์เก็บเงินปลายทาง เพราะมีพัสดุตีกลับหลายครั้ง ติดต่อร้านเพื่อเปิดสิทธิ์คืน</div><% } %>
+
+  <form class="panel form" method="post" action="/account/profile">
+    <h2>ข้อมูลของฉัน</h2>
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <div class="fgrid">
+      <label class="f" for="display_name"><span>ชื่อ</span><input id="display_name" name="display_name" required minlength="2" maxlength="60" value="<%= me.display_name %>"></label>
+      <label class="f" for="phone"><span>เบอร์โทร</span><input id="phone" name="phone" type="tel" required value="<%= me.phone %>"></label>
+    </div>
+    <label class="f" for="email"><span>อีเมล</span><input id="email" value="<%= me.email %>" disabled></label>
+    <div><button class="btn">บันทึก</button></div>
+  </form>
+
+  <div class="panel stack" id="addresses">
+    <h2>สมุดที่อยู่</h2>
+    <% if (!addresses.length) { %><p class="muted">ยังไม่มีที่อยู่ เพิ่มไว้เพื่อสั่งซื้อเร็วขึ้น</p><% } %>
+    <ul class="my-orders">
+      <% for (const a of addresses) { %>
+      <li><div class="addr">
+        <div><b><%= a.name %></b> <span class="num muted"><%= a.phone %></span><% if (a.is_default) { %> <%- pill('ที่อยู่หลัก', 'good') %><% } %><div class="small"><%= addrText(a) %></div></div>
+        <div class="row">
+          <% if (!a.is_default) { %><form method="post" action="/account/addresses/<%= a.id %>/default"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn sm">ตั้งเป็นที่อยู่หลัก</button></form><% } %>
+          <form method="post" action="/account/addresses/<%= a.id %>/delete" data-confirm="ลบที่อยู่นี้?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn sm ghost">ลบ</button></form>
+        </div>
+      </div></li>
+      <% } %>
+    </ul>
+    <details <%= errors ? 'open' : '' %>>
+      <summary class="btn">+ เพิ่มที่อยู่</summary>
+      <form class="form" method="post" action="/account/addresses" style="margin-top:12px">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <%- include('../partials/errors') %>
+        <%- include('../partials/address-fields', { form, required: true }) %>
+        <label class="check" for="is_default"><input type="checkbox" id="is_default" name="is_default" value="1"> ตั้งเป็นที่อยู่หลัก</label>
+        <div><button class="btn primary">บันทึกที่อยู่</button></div>
+      </form>
+    </details>
+  </div>
+
+  <form class="panel form" method="post" action="/account/password">
+    <h2>เปลี่ยนรหัสผ่าน</h2>
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label class="f" for="current_password"><span>รหัสผ่านปัจจุบัน</span><input id="current_password" name="current_password" type="password" autocomplete="current-password" required></label>
+    <div class="fgrid">
+      <label class="f" for="new_password"><span>รหัสผ่านใหม่</span><input id="new_password" name="new_password" type="password" autocomplete="new-password" minlength="8" required></label>
+      <label class="f" for="confirm"><span>ยืนยันรหัสผ่านใหม่</span><input id="confirm" name="confirm" type="password" autocomplete="new-password" minlength="8" required></label>
+    </div>
+    <div><button class="btn">เปลี่ยนรหัสผ่าน</button></div>
+  </form>
+  <p class="small muted">สมัครเมื่อ <%= C.dt(me.created_at) %></p>
+</section>
+<%- include('../partials/foot', { scripts: ['address'] }) %>

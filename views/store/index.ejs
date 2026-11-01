@@ -1,0 +1,76 @@
+<%- include('../partials/head') %>
+<%
+  // "ใหม่" = the 4 most recently added products within 30 days. "ขายดี" = top 4 by units in the last 30 days (at least 2 sold).
+  const MONTH = 30 * 24 * 3600 * 1000, now = Date.now();
+  const fresh = new Set(products.filter(p => now - p.created_at < MONTH).sort((a, b) => b.created_at - a.created_at).slice(0, 4).map(p => p.id));
+  const hot = new Set(products.filter(p => p.sold >= 2).sort((a, b) => b.sold - a.sold).slice(0, 4).map(p => p.id));
+  const qs = search ? 'q=' + encodeURIComponent(search) : '';
+  const CHIPS = [['all', 'ทั้งหมด'], ['kdp', 'หนังสือ'], ['handmade', 'Handmade'], ...Object.entries(C.HM_CATS), ...Object.entries(C.CATS)];
+  const heading = search ? `ผลการค้นหา “${search}”` : (CHIPS.find(c => c[0] === cat) || [, ''])[1];
+%>
+<% if (cat === 'all' && !search) { %>
+<section class="hero">
+  <span class="eco-tag"><%- include('_leaf') %> พิมพ์เมื่อสั่ง ทำเมื่อสั่ง ไม่มีของเหลือทิ้ง</span>
+  <h1>หนังสือพิมพ์ตามสั่ง<br>และงานทำมือจากคนไทย</h1>
+  <p>นิทาน นวนิยาย และสมุดระบายสีพิมพ์ใหม่ทุกเล่ม เครื่องประดับและของ handmade ที่เลือกสี ขนาด และชื่อได้เอง จ่ายเงินปลายทาง</p>
+</section>
+<% } %>
+
+<div class="shop-bar">
+  <form class="shop-search" method="get" action="/" role="search">
+    <% if (cat !== 'all') { %><input type="hidden" name="cat" value="<%= cat %>"><% } %>
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m20 20-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <input type="search" name="q" value="<%= search %>" placeholder="ค้นหาสินค้า วัสดุ หรือชื่อร้าน" aria-label="ค้นหา">
+    <button class="btn primary">ค้นหา</button>
+  </form>
+  <nav class="cats" aria-label="หมวดหมู่">
+    <% for (const [k, t] of CHIPS) { %>
+      <a class="cat" href="/<%= k === 'all' ? (qs ? '?' + qs : '') : '?cat=' + k + (qs ? '&' + qs : '') %>" <%- cat === k ? 'aria-current="true"' : '' %>><%= t %></a>
+    <% } %>
+  </nav>
+</div>
+
+<section class="stack">
+  <div class="row between">
+    <h2><%= heading === 'ทั้งหมด' ? 'สินค้าทั้งหมด' : heading %></h2>
+    <span class="small muted"><%= products.length %> รายการ</span>
+  </div>
+  <% if (!products.length) { %>
+    <div class="empty-shop">
+      <p>ยังไม่มีสินค้าที่ตรงกับการค้นหา</p>
+      <a class="btn" href="/">ดูสินค้าทั้งหมด</a>
+    </div>
+  <% } else { %>
+  <div class="products">
+    <% for (const p of products) { %>
+    <a class="product" href="/item/<%= p.id %>">
+      <div class="product-cv">
+        <img src="/files/cover/<%= p.id %>" alt="" loading="lazy">
+        <% // At most two badges so the cover stays readable: ขายดี > ใหม่ > Handmade > คัสตอมได้.
+           const tags = [hot.has(p.id) && ['hot', 'ขายดี'], fresh.has(p.id) && ['new', 'ใหม่'], p.kind === 'handmade' && ['', 'Handmade'],
+                         p.kind === 'handmade' && O.parse(p.options).length && ['', 'คัสตอมได้']].filter(Boolean).slice(0, 2); %>
+        <div class="badges"><% for (const [c, t] of tags) { %><span class="badge <%= c %>"><%= t %></span><% } %>
+        </div>
+      </div>
+      <div class="product-meta">
+        <span class="product-t"><%= p.title %></span>
+        <span class="small muted"><%= p.shop %></span>
+        <span class="product-wait">ได้รับใน <%= C.WAIT.min %>–<%= C.WAIT.max %> วัน</span>
+        <span class="product-price num"><%= p.kind === 'handmade' && O.parse(p.options).some(o => (o.values || []).some(v => v.price) || o.price) ? 'เริ่ม ' : '' %><%= C.thb(p.price) %></span>
+      </div>
+    </a>
+    <% } %>
+  </div>
+  <% } %>
+</section>
+
+<section class="howto" aria-labelledby="howto-h">
+  <h2 id="howto-h">สั่งซื้อง่าย ๆ 3 ขั้น</h2>
+  <ol>
+    <li><b>เลือกสินค้า ใส่ตะกร้า</b><span>งาน handmade เลือกสี ขนาด หรือใส่ชื่อได้ในหน้าสินค้า</span></li>
+    <li><b>กรอกที่อยู่ กดยืนยัน</b><span>จ่ายเงินสดเมื่อได้รับของ (เก็บเงินปลายทาง)</span></li>
+    <li><b>รอรับที่บ้าน <%= C.WAIT.min %>–<%= C.WAIT.max %> วัน</b><span>ทุกชิ้นผลิตใหม่หลังคุณสั่ง หนังสือเราพิมพ์และส่งให้ งาน handmade ร้านทำแล้วส่งตรงถึงคุณ ติดตามได้ทุกพัสดุ</span></li>
+  </ol>
+  <p class="eco-note"><%- include('_leaf') %> ผลิตเฉพาะชิ้นที่มีคนสั่ง ไม่มีสต็อกค้าง ไม่มีของเหลือทิ้ง</p>
+</section>
+<%- include('../partials/foot') %>

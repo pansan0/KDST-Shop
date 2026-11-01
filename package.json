@@ -1,0 +1,25 @@
+{
+  "name": "inkfold",
+  "version": "1.0.0",
+  "description": "ระบบขายหนังสือ Print-on-Demand (แบบ KDP) พร้อมพอร์ทัลผู้ขายและแอดมิน",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^12.11.1",
+    "ejs": "^3.1.10",
+    "express": "^4.22.3",
+    "express-session": "^1.19.0",
+    "multer": "^2.5.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "private": true
+}
