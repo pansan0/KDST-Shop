@@ -1,0 +1,19 @@
+# Render Blueprint: เอาเว็บขึ้น Render แบบฟรี (New → Blueprint → เลือก repo นี้)
+# หมายเหตุ: แผนฟรีไม่มีดิสก์ถาวร ข้อมูลใน storage/ หายเมื่อเซิร์ฟเวอร์รีสตาร์ท (seed สร้างข้อมูลตัวอย่างใหม่ให้)
+services:
+  - type: web
+    name: kdst-shop
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: "1"
+      - key: SEED_DEMO
+        value: "1"
