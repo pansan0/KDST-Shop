@@ -284,7 +284,7 @@ router.get('/sales', (req, res) => {
   const items = db.prepare(`SELECT i.*, o.code, o.method, s.status, s.fulfilled_by, s.created_at FROM order_items i
                             JOIN shipments s ON s.id=i.shipment_id JOIN orders o ON o.id=i.order_id
                             WHERE i.seller_id=? ORDER BY s.created_at DESC LIMIT 300`).all(req.user.id);
-  const payouts = db.prepare('SELECT amount,ref,note,created_at FROM payouts WHERE seller_id=? ORDER BY created_at DESC').all(req.user.id);
+  const payouts = db.prepare('SELECT id,amount,ref,note,created_at,slip_file FROM payouts WHERE seller_id=? ORDER BY created_at DESC').all(req.user.id);
   res.render('seller/sales', { title: 'ยอดขายและการรับเงิน', portal: 'seller', items, payouts, stats: sellerStats(req.user.id), fee: Number(getSettings().hm_fee_pct) || 0 });
 });
 

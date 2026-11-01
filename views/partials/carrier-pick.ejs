@@ -1,0 +1,11 @@
+<%# Carrier chips (with logos) + "อื่น ๆ" free text. Used by the seller ship form and the admin book ship form. Needs public/js/ship-form.js. params: id %>
+<fieldset class="optset carriers">
+  <legend>ส่งกับขนส่งเจ้าไหน</legend>
+  <div class="chips">
+    <% for (const [k, t] of Object.entries(C.CARRIERS)) { const logo = C.carrierLogo(k); %>
+    <label class="chipopt carrier-opt"><input type="radio" name="carrier" value="<%= k %>" required data-carrier>
+      <span><% if (logo) { %><img src="<%= logo %>" alt="" width="64" height="26"><% } else { %><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="7" cy="17.5" r="1.6" fill="currentColor"/><circle cx="17" cy="17.5" r="1.6" fill="currentColor"/></svg><% } %><small><%= t %></small></span></label>
+    <% } %>
+  </div>
+</fieldset>
+<label class="f" for="co<%= id %>" data-carrier-other hidden><span>ชื่อขนส่ง</span><input id="co<%= id %>" name="carrier_other" maxlength="40"></label>

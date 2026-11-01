@@ -1,6 +1,7 @@
 <%- include('../partials/head') %>
 <% const chosen = form.address_id || (addresses[0] ? String(addresses[0].id) : 'new'); %>
 <section class="stack narrow-col">
+  <%- include('../partials/flow-steps', { step: 1 }) %>
   <h1>ชำระเงิน</h1>
   <form class="checkout-form" method="post" action="/checkout?_csrf=<%= csrf %>" enctype="multipart/form-data">
     <%- include('../partials/errors') %>
@@ -24,7 +25,7 @@
       <h3><span class="n">2</span> ตรวจสินค้า (<%= plan.shipments.length %> พัสดุ)</h3>
       <% for (const g of plan.shipments) { %>
       <div class="stack-sm">
-        <div class="row between"><b class="small"><%= g.fulfilled_by === 'platform' ? 'ส่งโดย Inkfold' : 'ส่งโดยร้าน ' + g.shop %></b><span class="small">ค่าส่ง <b class="num"><%= g.ship_fee ? C.thb(g.ship_fee) : 'ฟรี' %></b></span></div>
+        <div class="row between"><b class="small"><%= g.fulfilled_by === 'platform' ? 'ส่งโดย ' + settings.store_name : 'ส่งโดยร้าน ' + g.shop %></b><span class="small">ค่าส่ง <b class="num"><%= g.ship_fee ? C.thb(g.ship_fee) : 'ฟรี' %></b></span></div>
         <%- include('../partials/ship-eta', { g, now }) %>
         <% for (const r of g.rows) { %>
         <div class="row between small"><span><%= r.product.title %> × <%= r.qty %><%- include('../partials/lines', { lines: r.lines }) %></span><span class="num"><%= C.thb(r.unit * r.qty) %></span></div>
@@ -36,7 +37,7 @@
     <div class="cstep">
       <h3><span class="n">3</span> จ่ายเงิน</h3>
       <% if (plan.method === 'transfer') { %>
-      <div class="opt" style="cursor:default"><input type="radio" checked disabled aria-label="โอนเงิน"><span><b>โอนผ่านพร้อมเพย์ แล้วแนบสลิป</b><small>ตะกร้าที่มีงาน handmade จ่ายครั้งเดียวทั้งตะกร้า Inkfold ถือเงินไว้จนคุณได้รับของ แล้วจึงจ่ายให้ร้าน</small></span></div>
+      <div class="opt" style="cursor:default"><input type="radio" checked disabled aria-label="โอนเงิน"><span><b>โอนผ่านพร้อมเพย์ แล้วแนบสลิป</b><small>ตะกร้าที่มีงาน handmade จ่ายครั้งเดียวทั้งตะกร้า <%= settings.store_name %> ถือเงินไว้จนคุณได้รับของ แล้วจึงจ่ายให้ร้าน</small></span></div>
       <div class="paybox">
         <span class="small muted">โอนเข้าพร้อมเพย์</span>
         <b class="num"><%= settings.promptpay %></b>

@@ -52,6 +52,13 @@ router.get('/files/slip/:orderId', (req, res) => {
   send(res, o.slip_file, 'private, no-store');
 });
 
+// Payout slip: admin, or the seller who was paid.
+router.get('/files/payout/:id', (req, res) => {
+  const p = db.prepare('SELECT seller_id,slip_file FROM payouts WHERE id=?').get(req.params.id);
+  if (!p || !isOwnerOrAdmin(req, p.seller_id)) return res.sendStatus(404);
+  send(res, p.slip_file, 'private, no-store');
+});
+
 // Problem photos: admin, the buyer who reported, and the shop whose parcel it is.
 router.get('/files/dispute/:id/:i', (req, res) => {
   const d = db.prepare('SELECT d.buyer_id,d.images,s.seller_id FROM disputes d JOIN shipments s ON s.id=d.shipment_id WHERE d.id=?').get(req.params.id);

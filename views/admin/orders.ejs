@@ -1,7 +1,7 @@
 <%- include('../partials/head') %>
 <% const backUrl = '/admin/orders?tab=' + tab; const hidden = `<input type="hidden" name="_csrf" value="${csrf}"><input type="hidden" name="back" value="${backUrl}">`; %>
 <section class="stack">
-  <div><h1>คำสั่งซื้อ</h1><p class="muted lead">คำสั่งซื้อแยกเป็นพัสดุ: หนังสือ Inkfold พิมพ์และส่งเอง (หนังสือล้วนเก็บเงินปลายทาง) · ตะกร้าที่มีงาน handmade ลูกค้าโอนครั้งเดียว แอดมินตรวจสลิป แล้วแต่ละร้านส่งเอง
+  <div><h1>คำสั่งซื้อ</h1><p class="muted lead">คำสั่งซื้อแยกเป็นพัสดุ: หนังสือ <%= settings.store_name %> พิมพ์และส่งเอง (หนังสือล้วนเก็บเงินปลายทาง) · ตะกร้าที่มีงาน handmade ลูกค้าโอนครั้งเดียว แอดมินตรวจสลิป แล้วแต่ละร้านส่งเอง
     เงินร้านปล่อยเมื่อลูกค้ากดได้รับ หรือครบ <%= settings.release_days %> วันหลังส่ง · แจ้งเตือนเมื่อเลยกำหนดส่ง <%= settings.late_alert_days %> วัน · ยกเลิกอัตโนมัติเมื่อเลย <%= settings.auto_cancel_days %> วัน</p></div>
   <nav class="filters" aria-label="กรอง">
     <% for (const [k, [t]] of Object.entries(tabs)) { %><a class="chip" href="/admin/orders?tab=<%= k %>" <%- tab === k ? 'aria-current="true"' : '' %>><%= t %><%= counts[k] && k !== 'all' && k !== 'done' ? ' (' + counts[k] + ')' : '' %></a><% } %>
@@ -15,7 +15,7 @@
       <tbody><% for (const o of orders) { const [pt, pc] = C.PAY_STATUS[o.pay_status]; %>
         <tr>
           <td class="small"><b class="num"><%= o.code %></b><br><%= o.buyer %><br><span class="muted"><%= C.dt(o.created_at) %></span></td>
-          <td class="small"><% for (const s of o.shipments) { %><div><b><%= s.fulfilled_by === 'platform' ? 'Inkfold' : 'ร้าน ' + s.shop %></b>: <%= s.items.map(i => i.title + ' ×' + i.qty).join(', ') %> <span class="muted">(<%= C.thb(s.items_total + s.ship_fee) %>)</span></div><% } %></td>
+          <td class="small"><% for (const s of o.shipments) { %><div><b><%= s.fulfilled_by === 'platform' ? settings.store_name : 'ร้าน ' + s.shop %></b>: <%= s.items.map(i => i.title + ' ×' + i.qty).join(', ') %> <span class="muted">(<%= C.thb(s.items_total + s.ship_fee) %>)</span></div><% } %></td>
           <td class="num r"><b><%= C.thb(o.total) %></b></td>
           <td class="small"><%- pill(pt, pc) %><br><% if (o.slip_file) { %><a href="/files/slip/<%= o.id %>" target="_blank" rel="noopener">เปิดสลิป</a><% } else { %><span class="muted">ไม่มีไฟล์ (ข้อมูลตัวอย่าง)</span><% } %><% if (o.slip_note) { %><br><span class="muted"><%= o.slip_note %></span><% } %></td>
           <td><div class="stack-sm actions-col">
@@ -24,7 +24,7 @@
             <form class="inline" method="post" action="/admin/orders/<%= o.id %>/reject-slip"><%- hidden %><input name="note" placeholder="เหตุผล (ไม่บังคับ)" aria-label="เหตุผลที่สลิปไม่ผ่าน"><button class="btn sm bad">สลิปไม่ผ่าน</button></form>
             <% } %>
             <% for (const s of o.shipments.filter(s => s.status === 'awaiting_payment')) { %>
-            <form class="inline" method="post" action="/admin/shipments/<%= s.id %>/cancel" data-confirm="ยกเลิกพัสดุที่ยังไม่ได้ชำระ? ถ้าได้รับเงินแล้ว ให้กดยืนยันการชำระก่อน ระบบจะได้ตั้งรายการคืนเงิน"><%- hidden %><input name="note" placeholder="เหตุผล" aria-label="เหตุผลที่ยกเลิก" required minlength="3"><button class="btn sm ghost">ยกเลิก<%= o.shipments.length > 1 ? (s.fulfilled_by === 'platform' ? ' (Inkfold)' : ' (' + s.shop + ')') : '' %></button></form>
+            <form class="inline" method="post" action="/admin/shipments/<%= s.id %>/cancel" data-confirm="ยกเลิกพัสดุที่ยังไม่ได้ชำระ? ถ้าได้รับเงินแล้ว ให้กดยืนยันการชำระก่อน ระบบจะได้ตั้งรายการคืนเงิน"><%- hidden %><input name="note" placeholder="เหตุผล" aria-label="เหตุผลที่ยกเลิก" required minlength="3"><button class="btn sm ghost">ยกเลิก<%= o.shipments.length > 1 ? (s.fulfilled_by === 'platform' ? ' (' + settings.store_name + ')' : ' (' + s.shop + ')') : '' %></button></form>
             <% } %>
           </div></td>
         </tr>
@@ -39,18 +39,22 @@
       <thead><tr><th>พัสดุ</th><th>สินค้า</th><th>ผู้รับ</th><th class="r">ยอด</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
       <tbody><% for (const s of ships) { const [t, c] = C.shipStatus(s); const open = ['placed', 'in_production', 'preparing'].includes(s.status); const late = open && Date.now() > s.due_at; const alert = open && s.fulfilled_by === 'seller' && s.due_at < lateAt; %>
         <tr>
-          <td class="small"><b class="num"><%= s.code %></b><br><%= s.fulfilled_by === 'platform' ? 'Inkfold' : 'ร้าน ' + s.shop %><br>
+          <td class="small"><b class="num"><%= s.code %></b><br><%= s.fulfilled_by === 'platform' ? settings.store_name : 'ร้าน ' + s.shop %><br>
             <% if (open) { %><span class="<%= alert ? 'bad-text' : late ? '' : 'muted' %>"><%= alert ? '⚠ เลยกำหนดเกิน ' + settings.late_alert_days + ' วัน · ' : late ? '⚠ เลยกำหนด · ' : '' %>ส่งภายใน <%= C.day(s.due_at) %></span><% } %></td>
           <td><div class="ship-items"><% for (const i of s.items) { %><div class="ship-item"><a class="order-thumb" href="/admin/products/<%= i.product_id %>" title="ดูสินค้า"><img src="/files/cover/<%= i.product_id %>" alt="" loading="lazy"></a><div><b><%= i.title %></b> × <%= i.qty %><%- include('../partials/lines', { lines: i.lines }) %><% if (i.note) { %><div class="small"><span class="muted">ข้อความสั่งทำ:</span> <%= i.note %></div><% } %></div></div><% } %></div></td>
           <td class="small"><%= s.ship_name %><br><span class="num"><%= s.ship_phone %></span><br><span class="muted"><%= s.ship_address %></span><br><span class="muted">บัญชี: <%= s.buyer %></span></td>
           <td class="num r"><%= C.thb(s.items_total + s.ship_fee) %><br><span class="small muted"><%= s.method === 'transfer' ? 'โอนแล้ว' : 'ปลายทาง' %></span></td>
-          <td><%- pill(t, c) %><% if (s.tracking) { %><div class="small num"><%= s.carrier %> <%= s.tracking %></div><% } %><% if (s.note && ['cancelled', 'returned'].includes(s.status)) { %><div class="small muted"><%= s.note %></div><% } %><% if (s.auto_note) { %><div class="small muted"><%= s.auto_note %></div><% } %></td>
+          <td><%- pill(t, c) %><% if (s.tracking) { %><div class="small num"><%- include('../partials/carrier', { carrier: s.carrier }) %> <%= s.tracking %></div><% } %><% if (s.note && ['cancelled', 'returned'].includes(s.status)) { %><div class="small muted"><%= s.note %></div><% } %><% if (s.auto_note) { %><div class="small muted"><%= s.auto_note %></div><% } %></td>
           <td><div class="stack-sm actions-col">
             <% if (s.flow !== 'hm' && s.status === 'placed') { %>
               <form method="post" action="/admin/shipments/<%= s.id %>/start"><%- hidden %><button class="btn sm good"><%= s.fulfilled_by === 'platform' ? 'ยืนยัน · ส่งเข้าคิวพิมพ์' : 'รับงานแทนร้าน' %></button></form>
             <% } else if (s.flow !== 'hm' && s.status === 'in_production') { %>
               <% for (const i of s.items) { %><% if (i.pdf_file) { %><a class="btn sm" href="/files/pdf/<%= i.product_id %>" target="_blank" rel="noopener">เนื้อใน: <%= i.title %></a><% } %><% if (i.cover_pdf) { %><a class="btn sm" href="/files/cover-pdf/<%= i.product_id %>" target="_blank" rel="noopener">ปก PDF: <%= i.title %></a><% } %><% } %>
-              <form class="inline" method="post" action="/admin/shipments/<%= s.id %>/ship"><%- hidden %><input name="tracking" placeholder="เลขพัสดุ" aria-label="เลขพัสดุ" required><button class="btn sm primary">จัดส่งแล้ว</button></form>
+              <form class="shipform compact" method="post" action="/admin/shipments/<%= s.id %>/ship"><%- hidden %>
+                <%- include('../partials/carrier-pick', { id: s.id }) %>
+                <label class="f" for="tr<%= s.id %>"><span>เลขพัสดุ</span><input id="tr<%= s.id %>" name="tracking" maxlength="60" required></label>
+                <button class="btn sm primary">จัดส่งแล้ว</button>
+              </form>
             <% } else if (s.flow !== 'hm' && s.status === 'shipped') { %>
               <form method="post" action="/admin/shipments/<%= s.id %>/deliver"><%- hidden %><button class="btn sm good"><%= s.method === 'cod' ? 'ส่งถึง · เก็บเงินแล้ว' : 'ส่งถึงแล้ว' %></button></form>
               <form class="inline" method="post" action="/admin/shipments/<%= s.id %>/return" data-confirm="บันทึกว่าผู้รับปฏิเสธรับพัสดุ?"><%- hidden %><input name="note" placeholder="หมายเหตุ (ไม่บังคับ)" aria-label="หมายเหตุตีกลับ"><button class="btn sm bad">ตีกลับ</button></form>
@@ -70,4 +74,4 @@
   </div>
   <% } %>
 </section>
-<%- include('../partials/foot') %>
+<%- include('../partials/foot', { scripts: ['ship-form'] }) %>

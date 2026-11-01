@@ -10,7 +10,7 @@
     <% for (const d of disputes) { const [dt, dc] = C.DISPUTE_STATUS[d.status]; const max = d.items_total + d.ship_fee; %>
     <div class="claim stack-sm" id="d<%= d.id %>">
       <div class="row between"><b>#<%= d.id %> · <span class="num"><%= d.code %></span> · <%= C.PROBLEM_KINDS[d.kind] %></b><%- pill(dt, dc) %></div>
-      <div class="small muted">ลูกค้า <%= d.buyer %> · ร้าน <%= d.shop %> · <%= d.carrier %> <span class="num"><%= d.tracking %></span> ส่งเมื่อ <%= C.dt(d.shipped_at) %> · แจ้งเมื่อ <%= C.dt(d.created_at) %></div>
+      <div class="small muted">ลูกค้า <%= d.buyer %> · ร้าน <%= d.shop %> · <%- include('../partials/carrier', { carrier: d.carrier }) %> <span class="num"><%= d.tracking %></span> ส่งเมื่อ <%= C.dt(d.shipped_at) %> · แจ้งเมื่อ <%= C.dt(d.created_at) %></div>
       <div class="small"><% for (const i of d.items) { %><div><%= i.title %> × <%= i.qty %><%- include('../partials/lines', { lines: i.lines }) %></div><% } %></div>
       <p class="prose"><%= d.detail %></p>
       <% if (d.imgs.length) { %><div class="previews"><% d.imgs.forEach((_, i) => { %><a href="/files/dispute/<%= d.id %>/<%= i %>" target="_blank" rel="noopener"><img src="/files/dispute/<%= d.id %>/<%= i %>" alt="รูปปัญหา <%= i + 1 %>"></a><% }) %></div><% } %>

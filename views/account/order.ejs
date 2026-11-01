@@ -7,6 +7,7 @@
 %>
 <section class="stack narrow-col">
   <% if (isNew) { %>
+  <%- include('../partials/flow-steps', { step: 3 }) %>
   <div class="done">
     <svg width="52" height="52" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="currentColor"/><path d="m7 12.5 3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     <h1>สั่งซื้อเรียบร้อย</h1>
@@ -52,7 +53,7 @@
   <% order.shipments.forEach((s, n) => { const [st, cls] = C.shipStatus(s); const [steps, at] = C.SHIP_STEPS[s.flow]; const step = at[s.status] ?? 0; const range = eta(s); %>
   <div class="panel stack">
     <div class="row between">
-      <div><b>พัสดุ <%= n + 1 %> · <%= s.fulfilled_by === 'platform' ? 'ส่งโดย Inkfold' : 'ส่งโดยร้าน ' + s.shop %></b>
+      <div><b>พัสดุ <%= n + 1 %> · <%= s.fulfilled_by === 'platform' ? 'ส่งโดย ' + settings.store_name : 'ส่งโดยร้าน ' + s.shop %></b>
         <div class="small muted"><%= prepaid ? 'ยอดพัสดุนี้' : 'เก็บเงินปลายทาง' %> <span class="num"><%= C.thb(s.items_total + s.ship_fee) %></span> (ค่าส่ง <%= s.ship_fee ? C.thb(s.ship_fee) : 'ฟรี' %>)</div></div>
       <%- pill(st, cls) %>
     </div>
@@ -67,7 +68,7 @@
     <% } %>
     <% if (s.note && ['cancelled', 'returned'].includes(s.status)) { %><div class="flash bad small"><%= s.note %></div><% } %>
     <% if (s.auto_note) { %><div class="small muted"><%= s.auto_note %></div><% } %>
-    <% if (s.tracking) { %><div class="paybox"><span class="small muted"><%= s.carrier || 'เลขพัสดุ' %></span><b class="num"><%= s.tracking %></b><% if (s.shipped_at) { %><span class="small muted">ส่งเมื่อ <%= C.dt(s.shipped_at) %></span><% } %></div><% } %>
+    <% if (s.tracking) { %><div class="paybox"><span class="small muted"><%- include('../partials/carrier', { carrier: s.carrier }) %></span><b class="num"><%= s.tracking %></b><% if (s.shipped_at) { %><span class="small muted">ส่งเมื่อ <%= C.dt(s.shipped_at) %></span><% } %></div><% } %>
     <ul class="list-rows">
       <% for (const i of s.items) { %>
       <li class="cart-row">
@@ -94,6 +95,10 @@
         <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn primary">ได้รับสินค้าแล้ว</button>
       </form>
       <a class="btn" href="/account/shipments/<%= s.id %>/problem">แจ้งปัญหา</a>
+      <% } else if (s.flow === 'pod' && s.status === 'shipped' && order.method === 'transfer') { %>
+      <form method="post" action="/account/shipments/<%= s.id %>/receive" data-confirm="ได้รับหนังสือครบแล้ว?">
+        <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn primary">ได้รับสินค้าแล้ว</button>
+      </form>
       <% } %>
       <% if (s.status === 'placed' && s.flow !== 'hm') { %>
       <form method="post" action="/account/shipments/<%= s.id %>/cancel" data-confirm="ยกเลิกพัสดุนี้?">
@@ -116,4 +121,4 @@
     <a class="btn ghost" href="/">เลือกสินค้าต่อ</a>
   </div>
 </section>
-<%- include('../partials/foot') %>
+<%- include('../partials/foot', { scripts: isNew ? ['confetti'] : [] }) %>

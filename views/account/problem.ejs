@@ -4,7 +4,7 @@
   <h1>แจ้งปัญหาพัสดุ</h1>
   <div class="panel stack-sm">
     <b>ร้าน <%= s.shop %></b>
-    <div class="small muted"><%= s.carrier %> <span class="num"><%= s.tracking %></span> · ส่งเมื่อ <%= C.dt(s.shipped_at) %></div>
+    <div class="small muted"><%- include('../partials/carrier', { carrier: s.carrier }) %> <span class="num"><%= s.tracking %></span> · ส่งเมื่อ <%= C.dt(s.shipped_at) %></div>
     <% for (const i of s.items) { %><div class="small"><%= i.title %> × <%= i.qty %><%- include('../partials/lines', { lines: i.lines }) %></div><% } %>
   </div>
   <form class="panel form" method="post" enctype="multipart/form-data" action="/account/shipments/<%= s.id %>/problem?_csrf=<%= csrf %>">

@@ -12,6 +12,7 @@ const { loadUser } = require('./lib/auth');
 const SqliteStore = require('./lib/session-store')(session);
 const seed = require('./seed');
 const { startJobs, jobsOnRequest } = require('./lib/jobs');
+const { i18n, switchLang } = require('./lib/i18n');
 
 seed();
 
@@ -58,6 +59,10 @@ app.use((req, res, next) => {
   res.locals.q = req.query;
   next();
 });
+
+// Thai / English for customer pages (must run after the locals above so it can swap C for English dates).
+app.use(i18n);
+app.get('/lang/:code', switchLang);
 
 // CSRF: one token per session. Multipart forms pass it in the query string
 // (body is not parsed until multer runs), urlencoded forms pass it in the body.

@@ -7,4 +7,7 @@
   <span><b><%= pod ? C.WAIT.text : C.hmWaitText(g.prep_days) %></b> · คาดว่าได้รับ <b><%= C.day(a) %> – <%= C.day(b) %></b><%= pod ? '' : ' (นับจากยืนยันการชำระ)' %></span></div>
 <% if (!pod) { const sh = g.shopShip; %>
 <div class="small muted">ค่าส่งร้านนี้: ชิ้นแรก <%= C.thb(sh.ship_first) %><%= sh.ship_next ? ` · ชิ้นต่อไป +${C.thb(sh.ship_next)}` : '' %><% if (sh.ship_free_over != null) { %> · ส่งฟรีเมื่อครบ <%= C.thb(sh.ship_free_over) %><% if (g.items_total < sh.ship_free_over) { %> (ขาดอีก <%= C.thb(sh.ship_free_over - g.items_total) %>)<% } %><% } %></div>
+<% if (sh.ship_free_over != null) { const pct = Math.min(100, Math.round(g.items_total / sh.ship_free_over * 100)); %>
+<div class="freebar" role="img" aria-label="ยอดร้านนี้ <%= pct %>% ของยอดส่งฟรี"><span style="width:<%= pct %>%"></span><b><%= pct >= 100 ? 'ได้ส่งฟรีแล้ว 🎉' : 'อีกนิดได้ส่งฟรี' %></b></div>
+<% } %>
 <% } %>

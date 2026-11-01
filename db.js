@@ -259,6 +259,7 @@ addCol('users', 'ship_free_over', 'INTEGER');
 addCol('users', 'ship_from', "TEXT DEFAULT ''");
 addCol('users', 'refund_account', "TEXT DEFAULT ''");
 addCol('order_items', 'note', "TEXT DEFAULT ''");
+addCol('payouts', 'slip_file', 'TEXT'); // transfer slip the admin attaches when paying a seller
 
 // SQLite cannot change a CHECK constraint in place, so orders and shipments are rebuilt (copy → drop → rename).
 // A copy of the whole database is written next to it first.
@@ -291,13 +292,13 @@ if (needOrders || needShipments) {
 db.pragma(`user_version = ${SCHEMA_VERSION}`);
 
 const DEFAULT_SETTINGS = {
-  store_name: 'Inkfold',
+  store_name: 'KDST Shop',
   shipping: '50',       // flat fee per Inkfold (KDP) shipment
   hm_fee_pct: '15',     // marketplace fee on handmade items
   cod_limit: '3000',    // max COD order total
   return_limit: '2',    // refused COD parcels before COD is blocked for a buyer
   promptpay: '081-234-5678',               // where buyers transfer (orders with handmade items)
-  account_name: 'อิงค์โฟลด์ (บัญชีตัวอย่าง)',
+  account_name: 'KDST Shop (บัญชีตัวอย่าง)',
   release_days: '7',       // handmade: money released this many days after the tracking number, if no problem is reported
   late_alert_days: '2',    // flag a handmade parcel to admin this many days after its ship-by date
   auto_cancel_days: '5',   // cancel + refund a handmade parcel still not shipped this many days after its ship-by date

@@ -1,0 +1,3 @@
+<ol class="flow-steps" aria-label="ขั้นตอนการสั่งซื้อ">
+  <% ['ตะกร้า', 'ที่อยู่และชำระเงิน', 'สั่งซื้อสำเร็จ'].forEach((t, i) => { %><li class="<%= i < step ? 'done' : i === step ? 'on' : '' %>" <%- i === step ? 'aria-current="step"' : '' %>><span><%= i < step ? '✓' : i + 1 %></span><%= t %></li><% }) %>
+</ol>

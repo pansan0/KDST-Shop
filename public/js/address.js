@@ -6,7 +6,10 @@
   let dataP;
   const load = () => (dataP ||= fetch('/static/data/th-address.json').then(r => r.json()).then(d => new Map(d.provinces.map(([th, en, ds]) => [th, { en, ds: new Map(ds.map(([n, subs]) => [n, new Map(subs)])) }]))));
   const BKK = 'กรุงเทพมหานคร';
-  const labels = p => (p === BKK ? ['เขต', 'แขวง'] : ['อำเภอ', 'ตำบล']);
+  // Page language (set by the server on <html lang>): province names stay Thai, the UI text follows the page.
+  const EN = document.documentElement.lang === 'en';
+  const labels = p => (EN ? ['District', 'Subdistrict'] : p === BKK ? ['เขต', 'แขวง'] : ['อำเภอ', 'ตำบล']);
+  const pickText = l => (EN ? 'Choose a ' + l.toLowerCase() : 'เลือก' + l);
   const norm = s => s.toLowerCase().replace(/\s+/g, '');
 
   function fill(sel, names, placeholder) {
@@ -28,14 +31,14 @@
     };
     const onProvince = () => {
       const [dl, sl] = setLabels();
-      fill(dist, tree && prov.value ? [...tree.get(prov.value).ds.keys()] : [], 'เลือก' + dl);
-      fill(sub, [], 'เลือก' + sl);
+      fill(dist, tree && prov.value ? [...tree.get(prov.value).ds.keys()] : [], pickText(dl));
+      fill(sub, [], pickText(sl));
       zip.value = '';
     };
     const onDistrict = () => {
       const [, sl] = labels(prov.value);
       const d = tree?.get(prov.value)?.ds.get(dist.value);
-      fill(sub, d ? [...d.keys()] : [], 'เลือก' + sl);
+      fill(sub, d ? [...d.keys()] : [], pickText(sl));
       zip.value = '';
     };
     const onSub = () => { zip.value = tree?.get(prov.value)?.ds.get(dist.value)?.get(sub.value) || zip.value; };
@@ -47,12 +50,12 @@
     const wrap = document.createElement('div');
     wrap.className = 'combo';
     const input = document.createElement('input');
-    Object.assign(input, { type: 'text', autocomplete: 'off', placeholder: 'พิมพ์ค้นหาจังหวัด เช่น ชลบุรี', value: prov.value });
+    Object.assign(input, { type: 'text', autocomplete: 'off', placeholder: EN ? 'Type to search, e.g. Chon Buri' : 'พิมพ์ค้นหาจังหวัด เช่น ชลบุรี', value: prov.value });
     input.setAttribute('role', 'combobox');
     input.setAttribute('aria-expanded', 'false');
     input.setAttribute('aria-controls', id);
     input.setAttribute('aria-autocomplete', 'list');
-    input.setAttribute('aria-label', 'จังหวัด');
+    input.setAttribute('aria-label', EN ? 'Province' : 'จังหวัด');
     const list = document.createElement('ul');
     list.id = id;
     list.className = 'combo-list';
@@ -80,7 +83,7 @@
         li.textContent = p;
         li.addEventListener('mousedown', e => { e.preventDefault(); choose(p); });
         return li;
-      }) : [Object.assign(document.createElement('li'), { className: 'combo-empty', textContent: 'ไม่พบจังหวัดนี้' })]));
+      }) : [Object.assign(document.createElement('li'), { className: 'combo-empty', textContent: EN ? 'No province found' : 'ไม่พบจังหวัดนี้' })]));
       setActive(shown.length ? 0 : -1);
     };
     const setActive = i => {

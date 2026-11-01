@@ -46,3 +46,36 @@
   update();
   if (f.querySelector('.flash.bad')) f.scrollIntoView({ block: 'start' });
 })();
+
+// Gallery: thumbnails swap the main image; the main image opens a lightbox (<dialog>) with prev/next and arrow keys.
+(() => {
+  const data = document.querySelector('[data-shots]');
+  if (!data) return;
+  const shots = JSON.parse(data.textContent);
+  const main = document.querySelector('[data-main-img]');
+  const thumbs = document.querySelectorAll('[data-thumb]');
+  const lb = document.querySelector('[data-lightbox]');
+  const lbImg = lb.querySelector('[data-lb-img]'), lbCount = lb.querySelector('[data-lb-count]');
+  let cur = 0;
+  const show = i => {
+    cur = (i + shots.length) % shots.length;
+    main.src = shots[cur];
+    thumbs.forEach(t => t.toggleAttribute('aria-current', Number(t.dataset.thumb) === cur));
+    if (lb.open) { lbImg.src = shots[cur]; lbImg.alt = main.alt; lbCount.textContent = `${cur + 1} / ${shots.length}`; }
+  };
+  thumbs.forEach(t => t.addEventListener('click', e => { e.preventDefault(); show(Number(t.dataset.thumb)); }));
+  document.querySelector('[data-zoom]').addEventListener('click', () => {
+    if (typeof lb.showModal !== 'function') { window.open(shots[cur], '_blank', 'noopener'); return; }
+    lb.showModal();
+    show(cur);
+  });
+  lb.addEventListener('click', e => {
+    if (e.target === lb || e.target.closest('[data-lb-close]')) lb.close();
+    const step = e.target.closest('[data-lb-step]');
+    if (step) show(cur + Number(step.dataset.lbStep));
+  });
+  lb.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') show(cur + 1);
+    if (e.key === 'ArrowLeft') show(cur - 1);
+  });
+})();

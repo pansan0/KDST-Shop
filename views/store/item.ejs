@@ -12,14 +12,26 @@
 
 <section class="pdp">
   <div class="pdp-media">
-    <div class="pdp-cover">
-      <img src="/files/cover/<%= p.id %>" alt="<%= hm ? 'รูปสินค้า' : 'ปก' %> <%= p.title %>">
+    <% const shots = [`/files/cover/${p.id}`, ...p.previews.map((_, i) => `/files/preview/${p.id}/${i}`)]; %>
+    <div class="pdp-cover" data-gallery-main>
+      <button type="button" class="zoom" data-zoom aria-label="ดูรูปขนาดใหญ่">
+        <img src="<%= shots[0] %>" alt="<%= hm ? 'รูปสินค้า' : 'ปก' %> <%= p.title %>" data-main-img>
+      </button>
       <span class="badge eco"><%- include('_leaf') %> <%= hm ? 'ทำเมื่อสั่ง' : 'พิมพ์เมื่อสั่ง' %></span>
     </div>
     <% if (p.previews.length) { %>
-    <p class="small muted"><%= hm ? 'รูปเพิ่มเติม' : 'หน้าตัวอย่าง' %> (กดเพื่อดูภาพใหญ่)</p>
-    <div class="pdp-previews"><% p.previews.forEach((_, i) => { %><a href="/files/preview/<%= p.id %>/<%= i %>" target="_blank" rel="noopener"><img src="/files/preview/<%= p.id %>/<%= i %>" alt="รูปที่ <%= i + 2 %>" loading="lazy"></a><% }) %></div>
+    <p class="small muted"><%= hm ? 'รูปเพิ่มเติม' : 'หน้าตัวอย่าง' %> · กดรูปเพื่อดูใหญ่</p>
+    <div class="pdp-previews" data-thumbs>
+      <% shots.forEach((src, i) => { %><a href="<%= src %>" target="_blank" rel="noopener" data-thumb="<%= i %>" <%- i === 0 ? 'aria-current="true"' : '' %>><img src="<%= src %>" alt="รูปที่ <%= i + 1 %>" loading="lazy"></a><% }) %>
+    </div>
     <% } %>
+    <dialog class="lightbox" data-lightbox aria-label="รูปสินค้าขนาดใหญ่">
+      <img src="" alt="" data-lb-img>
+      <% if (shots.length > 1) { %><button type="button" class="lb-nav prev" data-lb-step="-1" aria-label="รูปก่อนหน้า">‹</button><button type="button" class="lb-nav next" data-lb-step="1" aria-label="รูปถัดไป">›</button><% } %>
+      <button type="button" class="lb-close" data-lb-close aria-label="ปิด">×</button>
+      <span class="lb-count small" data-lb-count></span>
+    </dialog>
+    <script type="application/json" data-shots><%- JSON.stringify(shots).replace(/</g, '\\u003c') %></script>
   </div>
 
   <div class="pdp-info">
@@ -36,8 +48,8 @@
       <div><b><%= hm ? C.hmWaitText(p.lead_days) : C.WAIT.text %></b><span><%= hm ? 'ร้านเริ่มเตรียมเมื่อยืนยันการชำระเงิน' : 'พิมพ์ใหม่หลังคุณสั่ง' %> · ถ้าสั่งวันนี้ คาดว่าจะได้รับ <b><%= C.day(eta[0]) %> – <%= C.day(eta[1]) %></b></span></div>
     </div>
     <ul class="perks">
-      <li><%- include('_leaf') %> <%= hm ? 'ทำเฉพาะชิ้นที่มีคนสั่ง ร้านส่งตรงถึงคุณ' : 'พิมพ์เฉพาะเล่มที่มีคนสั่ง Inkfold ส่งให้' %> ไม่มีของเหลือทิ้ง</li>
-      <li><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> <%= hm ? 'โอนเงินผ่านพร้อมเพย์ Inkfold ถือเงินไว้จนคุณได้รับของ มีปัญหาแจ้งคืนเงินได้' : 'เก็บเงินปลายทาง จ่ายเมื่อได้รับของ (ถ้าสั่งคู่กับงาน handmade จะโอนรวมครั้งเดียว)' %></li>
+      <li><%- include('_leaf') %> <%= hm ? 'ทำเฉพาะชิ้นที่มีคนสั่ง ร้านส่งตรงถึงคุณ' : 'พิมพ์เฉพาะเล่มที่มีคนสั่ง ' + settings.store_name + ' ส่งให้' %> ไม่มีของเหลือทิ้ง</li>
+      <li><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> <%= hm ? 'โอนเงินผ่านพร้อมเพย์ ' + settings.store_name + ' ถือเงินไว้จนคุณได้รับของ มีปัญหาแจ้งคืนเงินได้' : 'เก็บเงินปลายทาง จ่ายเมื่อได้รับของ (ถ้าสั่งคู่กับงาน handmade จะโอนรวมครั้งเดียว)' %></li>
     </ul>
 
     <form class="buybox" id="addForm" method="post" action="/cart/add/<%= p.id %>" data-base="<%= p.price %>" data-options="<%= p.options %>">
@@ -100,6 +112,20 @@
     <% if (hm && p.opts.length) { %><p class="hint">งานสั่งทำตามแบบที่คุณเลือก เปลี่ยนหรือคืนได้เฉพาะกรณีสินค้าชำรุดหรือทำผิดจากที่สั่ง</p><% } %>
   </div>
 </section>
+
+<% if (more.length) { %>
+<section class="stack more-shop" aria-labelledby="more-h">
+  <div class="sec-head" data-reveal><h2 id="more-h">สินค้าอื่นจาก <%= p.shop %></h2><a class="small" href="/?q=<%= encodeURIComponent(p.shop) %>#shop">ดูทั้งหมด →</a></div>
+  <div class="products">
+    <% more.forEach((m, i) => { %>
+    <a class="product" href="/item/<%= m.id %>" data-reveal style="--d:<%= i * 50 %>ms">
+      <div class="product-cv"><img src="/files/cover/<%= m.id %>" alt="" loading="lazy"><span class="product-go" aria-hidden="true">ดูรายละเอียด →</span></div>
+      <div class="product-meta"><span class="product-t"><%= m.title %></span><span class="product-price num"><%= C.thb(m.price) %></span></div>
+    </a>
+    <% }) %>
+  </div>
+</section>
+<% } %>
 
 <div class="buybar" id="buybar">
   <div><span class="small muted">ราคา</span><b class="num" id="barPrice"><%= C.thb(p.price) %></b></div>

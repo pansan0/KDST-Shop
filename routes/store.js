@@ -29,15 +29,32 @@ router.get('/', (req, res) => {
   else if (cat !== 'all') { sql += ' AND p.category=?'; p.push(cat); }
   if (q) { sql += ' AND (p.title LIKE ? OR p.subtitle LIKE ? OR p.keywords LIKE ? OR p.materials LIKE ? OR u.display_name LIKE ?)'; p.push(...Array(5).fill(`%${q}%`)); }
   const products = db.prepare(sql + ' ORDER BY p.updated_at DESC LIMIT 200').all(...p);
-  res.render('store/index', { title: 'ร้านค้า', portal: 'store', products, cat, search: q });
+  // The landing sections (stats, category tiles, featured shops) only show on the unfiltered home page.
+  const home = cat === 'all' && !q ? homeExtras() : null;
+  res.render('store/index', { title: 'ร้านค้า', portal: 'store', products, cat, search: q, home, scripts: ['home'] });
 });
+
+function homeExtras() {
+  const live = "p.status='approved' AND u.status='active'";
+  const stats = db.prepare(`SELECT
+      (SELECT COUNT(*) FROM products p JOIN users u ON u.id=p.seller_id WHERE ${live} AND p.kind='kdp') AS books,
+      (SELECT COUNT(*) FROM products p JOIN users u ON u.id=p.seller_id WHERE ${live} AND p.kind='handmade') AS handmade,
+      (SELECT COUNT(DISTINCT p.seller_id) FROM products p JOIN users u ON u.id=p.seller_id WHERE ${live}) AS shops,
+      (SELECT COALESCE(SUM(i.qty),0) FROM order_items i JOIN shipments s ON s.id=i.shipment_id WHERE s.status IN ('delivered','released')) AS delivered`).get();
+  const counts = Object.fromEntries(db.prepare(`SELECT p.category, COUNT(*) n FROM products p JOIN users u ON u.id=p.seller_id WHERE ${live} GROUP BY p.category`).all().map(r => [r.category, r.n]));
+  const shops = db.prepare(`SELECT u.id, u.display_name AS name, COUNT(*) AS n, MIN(p.id) AS cover,
+      GROUP_CONCAT(DISTINCT p.category) AS cats, MAX(u.ship_free_over) AS free_over
+    FROM products p JOIN users u ON u.id=p.seller_id WHERE ${live} AND p.kind='handmade' GROUP BY u.id ORDER BY n DESC LIMIT 4`).all();
+  return { stats, counts, shops };
+}
 
 function itemView(req, res, p, { form = {}, errors = null, status = 200 } = {}) {
   p.previews = JSON.parse(p.preview_files);
   p.opts = O.parse(p.options);
   // Books: fixed 7–14 days. Handmade: shop preparation days + 1–3 days transit (from payment confirmation).
   const eta = p.kind === 'kdp' ? C.waitRange(Date.now()) : C.hmRange(Date.now(), p.lead_days);
-  res.status(status).render('store/item', { title: p.title, portal: 'store', p, form, errors, eta, left: ORD.capacityLeft(p), stock: ORD.stockLeft(p), ship: Number(getSettings().shipping) || 0 });
+  const more = db.prepare(ORD.LIVE + ' AND p.seller_id=? AND p.id<>? ORDER BY p.updated_at DESC LIMIT 4').all(p.seller_id, p.id);
+  res.status(status).render('store/item', { title: p.title, portal: 'store', p, form, errors, eta, more, left: ORD.capacityLeft(p), stock: ORD.stockLeft(p), ship: Number(getSettings().shipping) || 0 });
 }
 
 router.get('/book/:id', (req, res) => res.redirect(301, `/item/${encodeURIComponent(req.params.id)}`));

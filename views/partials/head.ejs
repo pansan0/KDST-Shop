@@ -16,7 +16,7 @@
   const isActive = href => href === activeHref;
   const tag = { store: 'Print-on-Demand', seller: 'สตูดิโอผู้ขาย', admin: 'ระบบหลังร้าน' }[portal];
 %><!DOCTYPE html>
-<html lang="th">
+<html lang="<%= typeof lang !== 'undefined' ? lang : 'th' %>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -25,6 +25,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Mitr:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/app.css?v=<%= asset('app.css') %>">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#2f6a3c">
 </head>
 <body class="portal-<%= portal %>">
 <header class="top"><div class="top-in">
@@ -38,6 +40,9 @@
       <a class="tab" href="<%= href %>" <%- isActive(href) ? 'aria-current="page"' : '' %>><%= label %><% if (n) { %><span class="count"><%= n %></span><% } %></a>
     <% } %>
   </nav>
+  <% } %>
+  <% if (portal === 'store' && typeof langSwitch !== 'undefined' && langSwitch) { %>
+  <a class="lang-switch" href="/lang/<%= lang === 'en' ? 'th' : 'en' %>?back=<%= encodeURIComponent(path) %>" hreflang="<%= lang === 'en' ? 'th' : 'en' %>" aria-label="<%= lang === 'en' ? 'เปลี่ยนเป็นภาษาไทย' : 'Switch to English' %>"><%= lang === 'en' ? 'ไทย' : 'EN' %></a>
   <% } %>
   <% if (signedIn) { %>
   <div class="who">

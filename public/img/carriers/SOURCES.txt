@@ -1,0 +1,10 @@
+โลโก้ขนส่ง ใช้เพื่อบอกว่าพัสดุส่งกับขนส่งเจ้าไหนเท่านั้น (เครื่องหมายการค้าเป็นของแต่ละบริษัท)
+จับภาพจากโลโก้บนหัวเว็บทางการของแต่ละบริษัท เมื่อ 2026-11-01 (PNG ความละเอียด 3 เท่า ไม่ได้ดัดแปลงตัวโลโก้)
+
+thaipost.png  บริษัท ไปรษณีย์ไทย จำกัด     https://www.thailandpost.co.th/
+flash.png     Flash Express                https://www.flashexpress.co.th/
+jt.png        J&T Express Thailand         https://www.jtexpress.co.th/
+kex.png       KEX Express (เดิม Kerry Express ประเทศไทย)  https://th.kex-express.com/
+spx.png       SPX Express                  https://spx.co.th/
+
+ถ้าบริษัทเปลี่ยนโลโก้ ให้แทนที่ไฟล์ชื่อเดิม

@@ -9,6 +9,7 @@ const ORD = require('../lib/orders');
 const A = require('../lib/auth');
 const mountAuth = require('../lib/auth-routes');
 const { lateCutoff } = require('../lib/jobs');
+const { uploadFields, removeFile } = require('../lib/upload');
 
 const router = express.Router();
 mountAuth(router, 'admin', { passwordBack: '/admin/settings' });
@@ -121,7 +122,7 @@ router.post('/products/:id/reinstate', (req, res, next) => {
 // Tabs over shipments. "late" uses the admin setting late_alert_days past the ship-by date.
 const SHIP_TABS = {
   slips: ['รอตรวจสลิป', null],
-  platform: ['พิมพ์และส่ง (Inkfold)', "s.fulfilled_by='platform' AND s.status IN ('placed','in_production')"],
+  platform: ['พิมพ์และส่งหนังสือ', "s.fulfilled_by='platform' AND s.status IN ('placed','in_production')"],
   cod: ['รอยืนยันเก็บเงินปลายทาง', "s.status='shipped' AND o.method='cod'"],
   hm_prep: ['ร้านกำลังเตรียม', "s.fulfilled_by='seller' AND s.status IN ('preparing','placed','in_production')"],
   late: ['เลยกำหนดส่ง', "s.fulfilled_by='seller' AND s.status IN ('preparing','placed','in_production') AND s.due_at<@late"],
@@ -169,7 +170,14 @@ router.post('/shipments/:id/:move', (req, res) => {
   const move = req.params.move;
   // Refund and report only happen through claims; receive is the buyer's.
   if (!ORD.MOVES[move] || ['refund', 'report', 'receive'].includes(move)) return res.redirect(back(req, '/admin/orders'));
-  const out = ORD.moveShipment('admin', req.user.id, Number(req.params.id), move, { tracking: str(req.body.tracking, 60), carrier: str(req.body.carrier, 40), note: str(req.body.note, 300) });
+  // Carrier comes from the same picker sellers use: a C.CARRIERS key, or free text for "อื่น ๆ".
+  const key = C.CARRIERS[req.body.carrier] ? req.body.carrier : '';
+  const carrier = key === 'other' ? str(req.body.carrier_other, 40) : key ? C.CARRIERS[key] : '';
+  if (move === 'ship' && !carrier) {
+    flash(req, 'bad', 'เลือกบริษัทขนส่ง (ถ้าเลือก "อื่น ๆ" ให้พิมพ์ชื่อขนส่งด้วย)');
+    return res.redirect(back(req, '/admin/orders'));
+  }
+  const out = ORD.moveShipment('admin', req.user.id, Number(req.params.id), move, { tracking: str(req.body.tracking, 60), carrier, note: str(req.body.note, 300) });
   flash(req, out.error ? 'bad' : 'good', out.error || {
     start: 'ส่งเข้าคิวพิมพ์แล้ว', ship: 'บันทึกเลขพัสดุแล้ว', deliver: 'ยืนยันส่งถึงและเก็บเงินแล้ว ยอดเข้าบัญชีผู้ขาย',
     return: 'บันทึกว่าพัสดุตีกลับแล้ว', release: 'ปล่อยเงินให้ร้านแล้ว',
@@ -263,18 +271,39 @@ router.get('/payouts', (req, res) => {
                               JOIN users s ON s.id=p.seller_id JOIN users a ON a.id=p.admin_id ORDER BY p.created_at DESC LIMIT 200`).all();
   res.render('admin/payouts', { title: 'จ่ายเงินผู้ขาย', portal: 'admin', sellers: sellerRows().filter(s => s.stats.earned > 0 || s.stats.paid > 0 || s.stats.pending > 0), history });
 });
-router.post('/payouts', (req, res) => {
+// Multipart (optional transfer slip), so the CSRF token comes in the query string.
+router.post('/payouts', uploadFields([{ name: 'payout_slip', maxCount: 1 }], '/admin/payouts'), (req, res) => {
+  const slip = req.files?.payout_slip?.[0];
   const s = db.prepare("SELECT id,display_name FROM users WHERE id=? AND role='seller'").get(req.body.seller_id);
   const amount = Math.round(parseFloat(req.body.amount) * 100) / 100;
   const bal = s ? sellerStats(s.id).balance : 0;
-  if (!s) flash(req, 'bad', 'ไม่พบผู้ขาย');
-  else if (!(amount > 0)) flash(req, 'bad', 'ใส่ยอดที่โอน');
-  else if (amount > bal + 0.005) flash(req, 'bad', `ยอดเกินที่ค้างจ่าย (${C.thb(bal)})`);
-  else {
-    db.prepare('INSERT INTO payouts(seller_id,amount,ref,note,admin_id,created_at) VALUES (?,?,?,?,?,?)')
-      .run(s.id, amount, str(req.body.ref, 80), str(req.body.note, 200), req.user.id, Date.now());
-    flash(req, 'good', `บันทึกการโอน ${C.thb(amount)} ให้ ${s.display_name} แล้ว`);
+  let error = '';
+  if (!s) error = 'ไม่พบผู้ขาย';
+  else if (!(amount > 0)) error = 'ใส่ยอดที่โอน';
+  else if (amount > bal + 0.005) error = `ยอดเกินที่ค้างจ่าย (${C.thb(bal)})`;
+  if (error) {
+    if (slip) removeFile(slip.filename);
+    flash(req, 'bad', error);
+  } else {
+    db.prepare('INSERT INTO payouts(seller_id,amount,ref,note,admin_id,created_at,slip_file) VALUES (?,?,?,?,?,?,?)')
+      .run(s.id, amount, str(req.body.ref, 80), str(req.body.note, 200), req.user.id, Date.now(), slip?.filename || null);
+    flash(req, 'good', `บันทึกการโอน ${C.thb(amount)} ให้ ${s.display_name} แล้ว${slip ? ' พร้อมสลิป' : ''}`);
   }
+  res.redirect('/admin/payouts');
+});
+
+// Attach (or replace) the slip of a payout already recorded.
+router.post('/payouts/:id/slip', uploadFields([{ name: 'payout_slip', maxCount: 1 }], '/admin/payouts'), (req, res) => {
+  const slip = req.files?.payout_slip?.[0];
+  const p = db.prepare('SELECT id,slip_file FROM payouts WHERE id=?').get(req.params.id);
+  if (!p || !slip) {
+    if (slip) removeFile(slip.filename);
+    flash(req, 'bad', p ? 'เลือกไฟล์สลิปก่อน' : 'ไม่พบรายการโอน');
+    return res.redirect('/admin/payouts');
+  }
+  db.prepare('UPDATE payouts SET slip_file=? WHERE id=?').run(slip.filename, p.id);
+  removeFile(p.slip_file);
+  flash(req, 'good', 'แนบสลิปแล้ว ผู้ขายเปิดดูได้ในหน้ายอดขาย');
   res.redirect('/admin/payouts');
 });
 

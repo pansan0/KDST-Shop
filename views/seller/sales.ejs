@@ -25,8 +25,8 @@
   <div class="panel">
     <div class="row between head-row"><h2>ประวัติการรับเงิน</h2><a class="small" href="/seller/account#payout">แก้ไขบัญชีรับเงิน</a></div>
     <% if (!payouts.length) { %><div class="empty">ยังไม่มีการโอน</div><% } else { %>
-    <table><thead><tr><th>วันที่</th><th class="r">ยอด</th><th>อ้างอิง</th></tr></thead>
-      <tbody><% for (const p of payouts) { %><tr><td><%= C.dt(p.created_at) %></td><td class="num r"><%= C.thb(p.amount) %></td><td class="small"><%= p.ref %> <span class="muted"><%= p.note %></span></td></tr><% } %></tbody></table>
+    <table><thead><tr><th>วันที่</th><th class="r">ยอด</th><th>อ้างอิง</th><th>สลิป</th></tr></thead>
+      <tbody><% for (const p of payouts) { %><tr><td><%= C.dt(p.created_at) %></td><td class="num r"><%= C.thb(p.amount) %></td><td class="small"><%= p.ref %> <span class="muted"><%= p.note %></span></td><td class="small"><% if (p.slip_file) { %><a href="/files/payout/<%= p.id %>" target="_blank" rel="noopener">ดูสลิป</a><% } else { %><span class="muted">–</span><% } %></td></tr><% } %></tbody></table>
     <% } %>
   </div>
 </section>

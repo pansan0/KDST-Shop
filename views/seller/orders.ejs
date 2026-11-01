@@ -2,7 +2,7 @@
 <% const late = s => ['preparing', 'placed', 'in_production'].includes(s.status) && Date.now() > s.due_at; %>
 <section class="stack">
   <div><h1>ออเดอร์ที่ต้องจัดส่ง</h1>
-    <p class="muted lead">ลูกค้าโอนเงินให้ Inkfold แล้ว ร้านเตรียมสินค้าตามตัวเลือกที่ลูกค้าเลือก แพ็ก แล้วส่งเองกับขนส่งที่สะดวก จากนั้นกรอกชื่อขนส่งกับเลขพัสดุก่อนวันกำหนดส่ง
+    <p class="muted lead">ลูกค้าโอนเงินให้ <%= settings.store_name %> แล้ว ร้านเตรียมสินค้าตามตัวเลือกที่ลูกค้าเลือก แพ็ก แล้วส่งเองกับขนส่งที่สะดวก จากนั้นกรอกชื่อขนส่งกับเลขพัสดุก่อนวันกำหนดส่ง
       เงินจะเข้า "ถอนได้" เมื่อลูกค้ากดได้รับ หรือครบ <%= settings.release_days %> วันหลังส่งโดยไม่มีการแจ้งปัญหา · ถ้าเลยกำหนดส่ง <%= settings.auto_cancel_days %> วัน ระบบจะยกเลิกและคืนเงินลูกค้า</p></div>
   <nav class="filters" aria-label="กรอง">
     <% for (const [k, [t]] of Object.entries(tabs)) { %><a class="chip" href="/seller/orders?tab=<%= k %>" <%- tab === k ? 'aria-current="true"' : '' %>><%= t %><%= counts[k] && !['done', 'all'].includes(k) ? ' (' + counts[k] + ')' : '' %></a><% } %>
@@ -33,7 +33,7 @@
           <div><b><%= s.ship_name %></b> · <span class="num"><%= s.ship_phone %></span><br><span class="muted"><%= s.ship_address %></span></div>
         <% } else if (s.status === 'awaiting_payment') { %><div class="small muted">แสดงชื่อที่อยู่เมื่อลูกค้าชำระเงินแล้ว</div>
         <% } else { %><div class="small muted">ซ่อนข้อมูลผู้ซื้อแล้ว (PDPA: แสดงเฉพาะระหว่างจัดส่งและ 30 วันหลังได้รับ)</div><% } %>
-        <% if (s.tracking) { %><div class="small"><%= s.carrier || 'เลขพัสดุ' %> <b class="num"><%= s.tracking %></b> · ส่งเมื่อ <%= C.dt(s.shipped_at) %></div><% } %>
+        <% if (s.tracking) { %><div class="small row"><%- include('../partials/carrier', { carrier: s.carrier }) %> <b class="num"><%= s.tracking %></b> · ส่งเมื่อ <%= C.dt(s.shipped_at) %></div><% } %>
         <% if (s.note && ['cancelled', 'returned'].includes(s.status)) { %><div class="small muted"><%= s.note %></div><% } %>
         <% if (s.auto_note) { %><div class="small muted"><%= s.auto_note %></div><% } %>
         <% for (const d of s.disputes) { const [dt, dc] = C.DISPUTE_STATUS[d.status]; %>
@@ -46,9 +46,7 @@
     <% const hidden = `<input type="hidden" name="_csrf" value="${csrf}"><input type="hidden" name="tab" value="${tab}">`; %>
     <% if (s.status === 'preparing' || (s.flow === 'legacy' && s.status === 'in_production')) { %>
     <form class="shipform" method="post" action="/seller/shipments/<%= s.id %>/ship"><%- hidden %>
-      <label class="f" for="carrier<%= s.id %>"><span>ขนส่ง</span>
-        <select id="carrier<%= s.id %>" name="carrier" data-carrier required><option value="">เลือกขนส่ง</option><% for (const [k, t] of Object.entries(C.CARRIERS)) { %><option value="<%= k %>"><%= t %></option><% } %></select></label>
-      <label class="f" for="co<%= s.id %>" data-carrier-other hidden><span>ชื่อขนส่ง</span><input id="co<%= s.id %>" name="carrier_other" maxlength="40"></label>
+      <%- include('../partials/carrier-pick', { id: s.id }) %>
       <label class="f" for="tr<%= s.id %>"><span>เลขพัสดุ</span><input id="tr<%= s.id %>" name="tracking" maxlength="60" required></label>
       <button class="btn primary">บันทึกการจัดส่ง</button>
     </form>

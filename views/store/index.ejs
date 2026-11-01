@@ -7,16 +7,58 @@
   const qs = search ? 'q=' + encodeURIComponent(search) : '';
   const CHIPS = [['all', 'ทั้งหมด'], ['kdp', 'หนังสือ'], ['handmade', 'Handmade'], ...Object.entries(C.HM_CATS), ...Object.entries(C.CATS)];
   const heading = search ? `ผลการค้นหา “${search}”` : (CHIPS.find(c => c[0] === cat) || [, ''])[1];
+  // Category tiles: photo (public/media, Pexels) + which filter it opens.
+  const TILES = [
+    ['coloring', 'สมุดระบายสี', 'cat-coloring.jpg', ['coloring']],
+    ['kdp', 'นิทาน นวนิยาย และหนังสือ', 'cat-reading.jpg', Object.keys(C.CATS).filter(k => k !== 'coloring')],
+    ['jewelry', 'เครื่องประดับทำมือ', 'maker-beads.jpg', ['jewelry']],
+    ['bags', 'กระเป๋าและงานผ้า', 'cat-bags.jpg', ['bags']],
+    ['home', 'ของตกแต่งบ้าน', 'cat-home.jpg', ['home']],
+    ['paper', 'งานปักและงานกระดาษ', 'cat-craft.jpg', ['paper', 'toys']],
+  ];
+  // Featured shop banner: a photo matching the shop's main category.
+  const CAT_PHOTO = { jewelry: 'maker-beads.jpg', bags: 'cat-bags.jpg', home: 'cat-home.jpg', paper: 'cat-craft.jpg', toys: 'cat-craft.jpg' };
+  const count = keys => keys.reduce((a, k) => a + ((home && home.counts[k]) || 0), 0);
 %>
-<% if (cat === 'all' && !search) { %>
-<section class="hero">
-  <span class="eco-tag"><%- include('_leaf') %> พิมพ์เมื่อสั่ง ทำเมื่อสั่ง ไม่มีของเหลือทิ้ง</span>
-  <h1>หนังสือพิมพ์ตามสั่ง<br>และงานทำมือจากคนไทย</h1>
-  <p>นิทาน นวนิยาย และสมุดระบายสีพิมพ์ใหม่ทุกเล่ม เครื่องประดับและของ handmade ที่เลือกสี ขนาด และชื่อได้เอง จ่ายเงินปลายทาง</p>
+<% if (home) { %>
+<section class="hero-video" aria-label="ยินดีต้อนรับสู่ <%= settings.store_name %>">
+  <video class="hero-media" autoplay muted loop playsinline preload="auto" poster="/static/media/hero-jewelry-poster.jpg" data-autoplay>
+    <source src="/static/media/hero-jewelry.mp4" type="video/mp4">
+  </video>
+  <div class="hero-shade"></div>
+  <div class="hero-copy" data-reveal>
+    <span class="eco-tag light"><%- include('_leaf') %> พิมพ์เมื่อสั่ง ทำเมื่อสั่ง ไม่มีของเหลือทิ้ง</span>
+    <h1>ของทำมือและหนังสือ<br>ที่ผลิตขึ้นเพื่อคุณคนเดียว</h1>
+    <p>สั่งกำไลใส่ชื่อ กระเป๋าผ้าทอ หรือนิทานเล่มโปรด ร้านเริ่มทำเมื่อคุณสั่ง ส่งตรงถึงบ้าน จ่ายครั้งเดียวแม้สั่งหลายร้าน</p>
+    <div class="hero-cta">
+      <a class="btn primary big" href="/?cat=handmade">เลือกงาน handmade</a>
+      <a class="btn big ghost-light" href="/?cat=kdp">ดูหนังสือ</a>
+    </div>
+  </div>
+  <button class="video-toggle" type="button" data-video-toggle aria-label="หยุดวิดีโอ" aria-pressed="false"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg></button>
+</section>
+
+<ul class="trust" data-reveal>
+  <li><span class="trust-ic"><%- include('_leaf') %></span><b>ผลิตเมื่อสั่ง</b><small>ไม่มีสต็อกค้าง ไม่มีของเหลือทิ้ง</small></li>
+  <li><span class="trust-ic"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 4.4 3.4 8.3 8 9 4.6-.7 8-4.6 8-9V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m8.5 12 2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><b>เงินปลอดภัย</b><small>ร้านได้เงินเมื่อคุณได้รับของ</small></li>
+  <li><span class="trust-ic"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="7" cy="17.5" r="1.6" fill="currentColor"/><circle cx="17" cy="17.5" r="1.6" fill="currentColor"/></svg></span><b>ติดตามทุกพัสดุ</b><small>แยกตามร้าน พร้อมเลขพัสดุ</small></li>
+  <li><span class="trust-ic"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 1 3 6.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4 19v-5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><b>มีปัญหา แจ้งคืนเงินได้</b><small>แนบรูป แอดมินดูแลให้</small></li>
+</ul>
+
+<section class="stack" aria-labelledby="tiles-h">
+  <div class="sec-head" data-reveal><h2 id="tiles-h">เลือกตามหมวด</h2><span class="small muted">กดเพื่อดูสินค้าในหมวด</span></div>
+  <div class="tiles">
+    <% TILES.forEach(([k, t, img, keys], i) => { const n = k === 'kdp' ? home.stats.books : count(keys); %>
+    <a class="tile" href="/?cat=<%= k %>" data-reveal style="--d:<%= i * 60 %>ms">
+      <img src="/static/media/<%= img %>" alt="" loading="lazy">
+      <span class="tile-t"><b><%= t %></b><small><%= n ? n + ' รายการ' : 'เร็ว ๆ นี้' %></small></span>
+    </a>
+    <% }) %>
+  </div>
 </section>
 <% } %>
 
-<div class="shop-bar">
+<div class="shop-bar" id="shop">
   <form class="shop-search" method="get" action="/" role="search">
     <% if (cat !== 'all') { %><input type="hidden" name="cat" value="<%= cat %>"><% } %>
     <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m20 20-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -25,25 +67,26 @@
   </form>
   <nav class="cats" aria-label="หมวดหมู่">
     <% for (const [k, t] of CHIPS) { %>
-      <a class="cat" href="/<%= k === 'all' ? (qs ? '?' + qs : '') : '?cat=' + k + (qs ? '&' + qs : '') %>" <%- cat === k ? 'aria-current="true"' : '' %>><%= t %></a>
+      <a class="cat" href="/<%= k === 'all' ? (qs ? '?' + qs : '') : '?cat=' + k + (qs ? '&' + qs : '') %>#shop" <%- cat === k ? 'aria-current="true"' : '' %>><%= t %></a>
     <% } %>
   </nav>
 </div>
 
 <section class="stack">
-  <div class="row between">
+  <div class="sec-head">
     <h2><%= heading === 'ทั้งหมด' ? 'สินค้าทั้งหมด' : heading %></h2>
     <span class="small muted"><%= products.length %> รายการ</span>
   </div>
   <% if (!products.length) { %>
     <div class="empty-shop">
-      <p>ยังไม่มีสินค้าที่ตรงกับการค้นหา</p>
-      <a class="btn" href="/">ดูสินค้าทั้งหมด</a>
+      <svg width="120" height="96" viewBox="0 0 120 96" aria-hidden="true"><rect x="20" y="30" width="80" height="56" rx="6" fill="var(--cream)" stroke="currentColor" stroke-width="2"/><path d="M20 42h80M48 30l6-18h12l6 18" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="60" cy="62" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="m67 69 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <p>ยังไม่มีสินค้าที่ตรงกับการค้นหา ลองคำอื่น หรือดูทุกหมวด</p>
+      <a class="btn primary" href="/">ดูสินค้าทั้งหมด</a>
     </div>
   <% } else { %>
   <div class="products">
-    <% for (const p of products) { %>
-    <a class="product" href="/item/<%= p.id %>">
+    <% products.forEach((p, i) => { %>
+    <a class="product" href="/item/<%= p.id %>" data-reveal style="--d:<%= (i % 4) * 50 %>ms">
       <div class="product-cv">
         <img src="/files/cover/<%= p.id %>" alt="" loading="lazy">
         <% // At most two badges so the cover stays readable: ขายดี > ใหม่ > Handmade > คัสตอมได้.
@@ -51,6 +94,7 @@
                          p.kind === 'handmade' && O.parse(p.options).length && ['', 'คัสตอมได้']].filter(Boolean).slice(0, 2); %>
         <div class="badges"><% for (const [c, t] of tags) { %><span class="badge <%= c %>"><%= t %></span><% } %>
         </div>
+        <span class="product-go" aria-hidden="true">ดูรายละเอียด →</span>
       </div>
       <div class="product-meta">
         <span class="product-t"><%= p.title %></span>
@@ -59,18 +103,74 @@
         <span class="product-price num"><%= p.kind === 'handmade' && O.parse(p.options).some(o => (o.values || []).some(v => v.price) || o.price) ? 'เริ่ม ' : '' %><%= C.thb(p.price) %></span>
       </div>
     </a>
-    <% } %>
+    <% }) %>
   </div>
   <% } %>
 </section>
 
-<section class="howto" aria-labelledby="howto-h">
-  <h2 id="howto-h">สั่งซื้อง่าย ๆ 3 ขั้น</h2>
-  <ol>
-    <li><b>เลือกสินค้า ใส่ตะกร้า</b><span>งาน handmade เลือกสี ขนาด หรือใส่ชื่อได้ในหน้าสินค้า</span></li>
-    <li><b>กรอกที่อยู่ แล้วจ่ายเงิน</b><span>หนังสือเก็บเงินปลายทางได้ งาน handmade โอนพร้อมเพย์แล้วแนบสลิป จ่ายครั้งเดียวแม้สั่งหลายร้าน</span></li>
-    <li><b>รอรับที่บ้าน</b><span>หนังสือเราพิมพ์และส่งให้ใน <%= C.WAIT.min %>–<%= C.WAIT.max %> วัน งาน handmade ร้านเตรียมตามวันที่แจ้งแล้วส่งตรงถึงคุณ ติดตามได้ทุกพัสดุ</span></li>
-  </ol>
-  <p class="eco-note"><%- include('_leaf') %> ผลิตเฉพาะชิ้นที่มีคนสั่ง ไม่มีสต็อกค้าง ไม่มีของเหลือทิ้ง</p>
+<% if (home) { %>
+<section class="feature" aria-labelledby="pod-h">
+  <div class="feature-media" data-reveal>
+    <video muted loop playsinline preload="none" poster="/static/media/books-packing-poster.jpg" data-autoplay>
+      <source src="/static/media/books-packing.mp4" type="video/mp4">
+    </video>
+  </div>
+  <div class="feature-copy" data-reveal>
+    <span class="eyebrow">หนังสือพิมพ์ตามสั่ง</span>
+    <h2 id="pod-h">พิมพ์ใหม่ทุกเล่ม แพ็กส่งถึงมือคุณ</h2>
+    <p class="muted">นักเขียนและนักวาดอัปโหลดไฟล์ไว้กับเรา เมื่อคุณกดสั่ง เราพิมพ์เล่มใหม่ เข้าเล่ม ตรวจคุณภาพ แล้วส่งให้ใน <%= C.WAIT.min %>–<%= C.WAIT.max %> วัน ไม่ต้องพิมพ์ทิ้งไว้เป็นพัน ๆ เล่ม</p>
+    <dl class="stats">
+      <div><dt>หนังสือ</dt><dd class="num" data-count="<%= home.stats.books %>"><%= home.stats.books %></dd></div>
+      <div><dt>งาน handmade</dt><dd class="num" data-count="<%= home.stats.handmade %>"><%= home.stats.handmade %></dd></div>
+      <div><dt>ร้านค้าทั้งหมด</dt><dd class="num" data-count="<%= home.stats.shops %>"><%= home.stats.shops %></dd></div>
+      <div><dt>ชิ้นที่ส่งถึงแล้ว</dt><dd class="num" data-count="<%= home.stats.delivered %>"><%= home.stats.delivered %></dd></div>
+    </dl>
+    <a class="btn primary" href="/?cat=kdp#shop">เลือกหนังสือ</a>
+  </div>
 </section>
+
+<% if (home.shops.length) { %>
+<section class="stack" aria-labelledby="shops-h">
+  <div class="sec-head" data-reveal><h2 id="shops-h">ร้านทำมือที่น่าแวะ</h2><span class="small muted">ทุกร้านผ่านการคัดกรองว่าทำเองจริง</span></div>
+  <div class="shops">
+    <% home.shops.forEach((s, i) => { %>
+    <a class="shop-card" href="/?q=<%= encodeURIComponent(s.name) %>#shop" data-reveal style="--d:<%= i * 70 %>ms">
+      <img class="shop-cover" src="/static/media/<%= CAT_PHOTO[String(s.cats || '').split(',')[0]] || 'maker-beads.jpg' %>" alt="" loading="lazy">
+      <span class="shop-ava" aria-hidden="true"><%= [...s.name][0] %></span>
+      <b><%= s.name %></b>
+      <small class="muted"><%= s.n %> สินค้า · <%= String(s.cats || '').split(',').map(c => C.ALL_CATS[c]).filter(Boolean).slice(0, 2).join(' · ') %></small>
+      <% if (s.free_over != null) { %><span class="badge eco">ส่งฟรีเมื่อครบ <%= C.thb(s.free_over) %></span><% } %>
+    </a>
+    <% }) %>
+  </div>
+</section>
+<% } %>
+
+<section class="howto" aria-labelledby="howto-h">
+  <div class="howto-in">
+    <div class="stack-sm">
+      <h2 id="howto-h" data-reveal>สั่งซื้อง่าย ๆ 3 ขั้น</h2>
+      <ol>
+        <li data-reveal style="--d:0ms"><b>เลือกสินค้า ใส่ตะกร้า</b><span>งาน handmade เลือกสี ขนาด หรือใส่ชื่อ และฝากข้อความถึงร้านได้</span></li>
+        <li data-reveal style="--d:80ms"><b>กรอกที่อยู่ แล้วจ่ายเงิน</b><span>หนังสือเก็บเงินปลายทางได้ งาน handmade โอนพร้อมเพย์ครั้งเดียวแม้สั่งหลายร้าน</span></li>
+        <li data-reveal style="--d:160ms"><b>รอรับที่บ้าน</b><span>ติดตามแยกทุกพัสดุ ได้ของแล้วกดยืนยัน มีปัญหาแจ้งคืนเงินได้</span></li>
+      </ol>
+      <p class="eco-note"><%- include('_leaf') %> ผลิตเฉพาะชิ้นที่มีคนสั่ง ไม่มีสต็อกค้าง ไม่มีของเหลือทิ้ง</p>
+    </div>
+    <img class="howto-img" src="/static/media/parcel-boxes.jpg" alt="กล่องพัสดุพร้อมส่ง" loading="lazy" data-reveal>
+  </div>
+</section>
+
+<section class="cta-band" aria-labelledby="sell-h">
+  <video class="cta-media" muted loop playsinline preload="none" poster="/static/media/parcel-tape-poster.jpg" data-autoplay>
+    <source src="/static/media/parcel-tape.mp4" type="video/mp4">
+  </video>
+  <div class="cta-shade"></div>
+  <div class="cta-copy" data-reveal>
+    <h2 id="sell-h">มีฝีมือ? เปิดร้านกับ <%= settings.store_name %></h2>
+    <p>ลงขายหนังสือโดยไม่ต้องสต็อก หรือขายงานทำมือของคุณเอง เราดูแลหน้าร้าน การชำระเงิน และคืนเงินให้ลูกค้า คุณโฟกัสที่งานฝีมือ</p>
+    <div class="hero-cta"><a class="btn primary big" href="/seller/register">สมัครเป็นผู้ขาย</a><a class="btn big ghost-light" href="/seller/login">เข้าสู่ระบบผู้ขาย</a></div>
+  </div>
+</section>
+<% } %>
 <%- include('../partials/foot') %>

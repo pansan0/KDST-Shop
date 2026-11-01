@@ -82,7 +82,7 @@ router.post('/orders/:code/slip', uploadFields([{ name: 'slip', maxCount: 1 }], 
 
 router.post('/shipments/:id/receive', (req, res) => {
   const out = ORD.moveShipment('buyer', req.user.id, Number(req.params.id), 'receive');
-  flash(req, out.error ? 'bad' : 'good', out.error || 'ขอบคุณที่ยืนยัน เราปล่อยเงินให้ร้านแล้ว');
+  flash(req, out.error ? 'bad' : 'good', out.error || (out.shipment?.fulfilled_by === 'platform' ? 'ขอบคุณที่ยืนยันว่าได้รับหนังสือแล้ว' : 'ขอบคุณที่ยืนยัน เราปล่อยเงินให้ร้านแล้ว'));
   backToOrder(req, res, req.params.id);
 });
 

@@ -1,6 +1,7 @@
 <%- include('../partials/head') %>
 <% const now = Date.now(); %>
 <section class="stack narrow-col">
+  <%- include('../partials/flow-steps', { step: 0 }) %>
   <h1>ตะกร้า</h1>
   <% if (!cart.length) { %>
     <div class="empty-shop"><p>ตะกร้ายังว่าง</p><a class="btn primary" href="/">เลือกสินค้า</a></div>
@@ -9,7 +10,7 @@
 
   <% for (const g of plan.shipments) { %>
   <div class="cstep">
-    <h3><%- include('../store/_leaf') %> <%= g.fulfilled_by === 'platform' ? 'พัสดุจาก Inkfold (พิมพ์และส่งโดยเรา)' : 'พัสดุจากร้าน ' + g.shop %></h3>
+    <h3><%- include('../store/_leaf') %> <%= g.fulfilled_by === 'platform' ? 'พัสดุจาก ' + settings.store_name + ' (พิมพ์และส่งโดยเรา)' : 'พัสดุจากร้าน ' + g.shop %></h3>
     <% for (const r of g.rows) { %>
     <div class="cart-row">
       <a href="/item/<%= r.product.id %>"><img class="cart-img" src="/files/cover/<%= r.product.id %>" alt=""></a>

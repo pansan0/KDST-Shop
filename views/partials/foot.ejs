@@ -1,4 +1,24 @@
 </main>
+<% if (portal === 'store') { %>
+<footer class="site-foot">
+  <div class="foot-in">
+    <div class="foot-brand">
+      <b><%= settings.store_name %></b>
+      <p>หนังสือพิมพ์ตามสั่งและงานทำมือจากคนไทย ผลิตเฉพาะชิ้นที่มีคนสั่ง ไม่มีของเหลือทิ้ง</p>
+    </div>
+    <nav aria-label="ซื้อสินค้า"><b>ซื้อสินค้า</b><a href="/?cat=kdp#shop">หนังสือ</a><a href="/?cat=handmade#shop">งาน handmade</a><a href="/account/orders">ติดตามคำสั่งซื้อ</a><a href="/cart">ตะกร้า</a></nav>
+    <nav aria-label="ขายกับเรา"><b>ขายกับเรา</b><a href="/seller/register">สมัครเป็นผู้ขาย</a><a href="/seller/login">เข้าสู่ระบบผู้ขาย</a><a href="/seller/handmade/apply">สมัครขายงาน handmade</a></nav>
+    <div class="foot-ship"><b>ส่งกับ</b>
+      <div class="foot-logos"><% for (const k of ['thaipost', 'flash', 'jt', 'kerry', 'spx']) { %><img src="<%= C.carrierLogo(k) %>" alt="<%= C.CARRIERS[k] %>" loading="lazy"><% } %></div>
+      <small>หนังสือจ่ายปลายทางได้ · งาน handmade โอนพร้อมเพย์</small>
+    </div>
+  </div>
+  <div class="foot-base">
+    <span>© <%= new Date().getFullYear() %> <%= settings.store_name %> · โปรเจกต์รายวิชา Software Engineering</span>
+    <a href="/static/media/SOURCES.md" target="_blank" rel="noopener">ภาพและวิดีโอจาก Pexels (ดูเครดิต)</a>
+  </div>
+</footer>
+<% } %>
 <script src="/static/js/common.js?v=<%= asset('js/common.js') %>"></script>
 <% if (typeof scripts !== 'undefined') for (const s of scripts) { %><script src="/static/js/<%= s %>.js?v=<%= asset('js/' + s + '.js') %>"></script><% } %>
 </body>
